@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AIR CHECK</title>
+    <link rel="icon" type="image/png" href="/images/favicon.ico">
+</head>
+<body>
+    <a href="/users/logout"> Logout</a>
+   <h1>hello <%= user %></h1> 
+
+   <!-- API -->
+   <label for="city">Choose a city:</label>
+    <select id="city">
+        <option value="Bratislava">Bratislava</option>
+        <option value="Kosice">Košice</option>
+        <option value="Zilina">Žilina</option>
+        <option value="Presov">Prešov</option>
+        <option value="Martin">Martin</option>
+        <option value="A478879">Prečín (stanica)</option>
+        <option value="Banska Bystrica">Banská Bystrica</option>
+    </select>
+
+    <button onclick="getAirQuality()">Get Air Quality</button>
+
+    <h2>Air Quality Data</h2>
+    <p><strong>Selected City:</strong> <span id="selected-city">None</span></p>
+    <p><strong>Air Quality Index (AQI):</strong> <span id="aqi">-</span></p>
+    <p><strong>Dominant Pollutant:</strong> <span id="dominant">-</span></p>
+    <h3>Measured Values:</h3>
+    <ul id="measurements"></ul>
+
+    <script>
+        async function getAirQuality() {
+            const city = document.getElementById("city").value;
+            document.getElementById("selected-city").innerText = city;
+
+            try {
+                const response = await fetch(`/airquality?city=${city}`);
+                const data = await response.json();
+
+                if (data.error) {
+                    alert("Error: " + data.error);
+                    return;
+                }
+
+                document.getElementById("aqi").innerText = data.aqi;
+                document.getElementById("dominant").innerText = data.dominentpol;
+
+                const measurementsList = document.getElementById("measurements");
+                measurementsList.innerHTML = ""; 
+
+                if (data.iaqi) {
+                    for (const [key, value] of Object.entries(data.iaqi)) {
+                        const listItem = document.createElement("li");
+                        listItem.innerText = `${key.toUpperCase()}: ${value.v}`;
+                        measurementsList.appendChild(listItem);
+                    }
+                }
+
+            } catch (error) {
+                console.error("Error fetching air quality data:", error);
+                alert("Failed to load air quality data.");
+            }
+        }
+    </script>
+</body>
+</html>
