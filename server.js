@@ -44,6 +44,29 @@ app.use(passport.session());
 
 app.use(flash()); 
 
+// funkcia na vypocet AQI --dat neskor zvlast
+function calculateAQI(concentration, breakpoints) {
+    for (let i = 0; i < breakpoints.length - 1; i++) {
+        const [cLow, cHigh, iLow, iHigh] = breakpoints[i];
+
+        if (concentration >= cLow && concentration <= cHigh) {
+            return Math.round(((iHigh - iLow) / (cHigh - cLow)) * (concentration - cLow) + iLow);
+        }
+    }
+    return 500; // hodnota mimo rozsahu => max AQI
+}
+
+//intervaly pre pm25 pm 10
+const pm25_breakpoints = [
+    [0, 12.0, 0, 50], [12.1, 35.4, 51, 100], [35.5, 55.4, 101, 150],
+    [55.5, 150.4, 151, 200], [150.5, 250.4, 201, 300], [250.5, 500.4, 301, 500]
+];
+
+const pm10_breakpoints = [
+    [0, 54, 0, 50], [55, 154, 51, 100], [155, 254, 101, 150],
+    [255, 354, 151, 200], [355, 424, 201, 300], [425, 604, 301, 500]
+];
+
 
 // Route na ziskanie kvality ovzdusia podla mesta
 app.get('/airquality', async (req, res) => {
@@ -65,7 +88,18 @@ app.get('/airquality', async (req, res) => {
             // ak data neobsahuje nastavim null 
             const aqi = data.aqi || null;
             const dominantPollutant = data.dominentpol || null;
-            const measurements = data.iaqi ? JSON.stringify(data.iaqi) : '{}'; //measurmetns prevedieme na json  
+
+            //doplnene 
+            // Prekonvertovanie iaqi do rovnakého formátu ako agData
+            let convertedMeasurements = {};
+            if (data.iaqi) {
+                for (const [key, value] of Object.entries(data.iaqi)) {
+                    convertedMeasurements[key] = value.v; // Uchováme len číselné hodnoty
+                }
+            }
+            //const measurements = data.iaqi ? JSON.stringify(data.iaqi) : '{}'; //measurmetns prevedieme na json 
+            // Prevod na JSON string pre ukladanie do DB
+            const measurements = JSON.stringify(convertedMeasurements); 
 
             try {
                 await pool.query(
@@ -91,7 +125,124 @@ app.get('/airquality', async (req, res) => {
     }
 });
 
+//AgData
+app.get('/airquality/agdata', async (req, res) => {
+    //const sensorAddr = req.query.sensorAddr || "803428FFFE1CCEE9"; // iba jeden senzor
+    //const AGDATA_API_URL = `https://api.agdata.cz/sensors?sensorAddr=${sensorAddr}`;
+    const AGDATA_API_URL = `https://api.agdata.cz/sensors?sensorAddr=803428FFFE1CCEE9`;
+    const AGDATA_API_KEY = process.env.AGDATA_API_KEY; 
+    const city = "Trnovec nad Váhom";
+    //console.log("Agdata API KEY:", AGDATA_API_KEY );
 
+    try {
+        const response = await axios.get(AGDATA_API_URL, {
+            headers: { Authorization: `Bearer ${AGDATA_API_KEY}` }
+        });
+
+        console.log("First Sensor Data:", JSON.stringify(response.data.data[0], null, 2));
+
+        if (!response.data || response.data.data.length === 0) {
+            return res.status(404).json({ error: "No data found from Agdata API" });
+        }
+
+        const firstSensorData = response.data.data[0]; // Zoberieme len prvý záznam
+        const sensorId = firstSensorData.id;
+        const pm10 = firstSensorData.data.pm10 || null;
+        const pm25 = firstSensorData.data.pm25 || null;
+        const pm40 = firstSensorData.data.pm40 || null;
+        const pm100 = firstSensorData.data.pm100 || null;
+        const so2 = firstSensorData.data.so2 || null;
+        const airQualityIndex = firstSensorData.recommendation.index || null;
+        const timestamp = firstSensorData.date || new Date().toISOString();
+
+
+        // Výpočet AQI pre PM₂.₅ a PM₁₀
+        const aqi_pm25 = pm25 !== null ? calculateAQI(pm25, pm25_breakpoints) : null;
+        const aqi_pm10 = pm10 !== null ? calculateAQI(pm10, pm10_breakpoints) : null;
+
+        // Finálne AQI = max(AQI_PM25, AQI_PM10), ak obe hodnoty existujú
+        let aqi = null;
+        if (aqi_pm25 !== null && aqi_pm10 !== null) {
+            aqi = Math.max(aqi_pm25, aqi_pm10);
+        } else if (aqi_pm25 !== null) {
+            aqi = aqi_pm25;
+        } else if (aqi_pm10 !== null) {
+            aqi = aqi_pm10;
+        }
+
+
+       // Výber dominantného znečisťujúceho prvku
+       const pollutants = { pm10, pm25, pm40, pm100, so2 };
+       const dominantPollutant = Object.keys(pollutants).reduce((a, b) => pollutants[a] > pollutants[b] ? a : b);
+
+       // Uloženie do databázy
+       const measurements = JSON.stringify(pollutants); // Prevod údajov na JSON reťazec
+
+       try {
+           await pool.query(
+               `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements) 
+                VALUES ($1, $2, $3, $4) 
+                ON CONFLICT (city)  
+                DO UPDATE SET  aqi = EXCLUDED.aqi,dominant_pollutant = EXCLUDED.dominant_pollutant, 
+                              measurements = EXCLUDED.measurements, 
+                              timestamp = CURRENT_TIMESTAMP`,
+               [city, aqi, dominantPollutant, measurements]
+           );
+           console.log(`Data for ${city} saved to database.`);
+       } catch (dbError) {
+           console.error("Error saving Agdata data to database:", dbError);
+       }
+
+       // Odpoveď klientovi
+       res.json({
+           city,
+           aqi,
+           dominantPollutant,
+           measurements: pollutants,
+           timestamp
+       });
+
+    } catch (error) {
+        console.error("Error fetching Agdata data:", error);
+        res.status(500).json({ error: "Failed to fetch data from Agdata API" });
+    }
+});
+
+//na ziskanie udajov z databazy 
+app.get('/airquality/db', async (req, res) => {
+    const city = req.query.city;
+
+    if (!city) {
+        return res.status(400).json({ error: "City is required" });
+    }
+
+    try {
+        // Načítanie údajov z databázy
+        const result = await pool.query(
+            `SELECT aqi, dominant_pollutant, measurements, timestamp FROM air_quality WHERE city = $1`,
+            [city]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: "No data found for this city" });
+        }
+
+        // Vyberieme prvý záznam (mesto by malo mať len 1 záznam)
+        const { aqi, dominant_pollutant, measurements, timestamp } = result.rows[0];
+
+        res.json({
+            city,
+            aqi,
+            dominantPollutant: dominant_pollutant,
+            measurements,
+            timestamp
+        });
+
+    } catch (error) {
+        console.error("Error fetching air quality data from database:", error);
+        res.status(500).json({ error: "Failed to fetch data from database" });
+    }
+});
 
 
 

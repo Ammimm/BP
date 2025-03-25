@@ -12,58 +12,70 @@
 
    <!-- API -->
    <label for="city">Choose a city:</label>
-    <select id="city">
-        <option value="Bratislava">Bratislava</option>
-        <option value="Kosice">Košice</option>
-        <option value="Zilina">Žilina</option>
-        <option value="Presov">Prešov</option>
-        <option value="Martin">Martin</option>
-        <option value="A478879">Prečín (stanica)</option>
-        <option value="Banska Bystrica">Banská Bystrica</option>
-    </select>
+<select id="city">
+    <option value="Bratislava">Bratislava</option>
+    <option value="Kosice">Košice</option>
+    <option value="Zilina">Žilina</option>
+    <option value="Presov">Prešov</option>
+    <option value="Martin">Martin</option>
+    <option value="A478879">Prečín (stanica)</option>
+    <option value="Banska Bystrica">Banská Bystrica</option>
+    <option value="Trnovec nad Váhom">Trnovec nad Váhom</option> <!-- Agdata API -->
+</select>
 
-    <button onclick="getAirQuality()">Get Air Quality</button>
+<button onclick="getAirQuality()">Get Air Quality</button>
 
-    <h2>Air Quality Data</h2>
-    <p><strong>Selected City:</strong> <span id="selected-city">None</span></p>
-    <p><strong>Air Quality Index (AQI):</strong> <span id="aqi">-</span></p>
-    <p><strong>Dominant Pollutant:</strong> <span id="dominant">-</span></p>
-    <h3>Measured Values:</h3>
-    <ul id="measurements"></ul>
+<h2>Air Quality Data</h2>
+<p><strong>Selected City:</strong> <span id="selected-city">None</span></p>
+<p><strong>Air Quality Index (AQI):</strong> <span id="aqi">-</span></p>
+<p><strong>Dominant Pollutant:</strong> <span id="dominant">-</span></p>
+<h3>Measured Values:</h3>
+<ul id="measurements"></ul>
 
-    <script>
-        async function getAirQuality() {
-            const city = document.getElementById("city").value;
-            document.getElementById("selected-city").innerText = city;
+<script>
+    async function getAirQuality() {
+        const city = document.getElementById("city").value;
+        document.getElementById("selected-city").innerText = city;
 
-            try {
-                const response = await fetch(`/airquality?city=${city}`);
-                const data = await response.json();
-
-                if (data.error) {
-                    alert("Error: " + data.error);
-                    return;
-                }
-
-                document.getElementById("aqi").innerText = data.aqi;
-                document.getElementById("dominant").innerText = data.dominentpol;
-
-                const measurementsList = document.getElementById("measurements");
-                measurementsList.innerHTML = ""; 
-
-                if (data.iaqi) {
-                    for (const [key, value] of Object.entries(data.iaqi)) {
-                        const listItem = document.createElement("li");
-                        listItem.innerText = `${key.toUpperCase()}: ${value.v}`;
-                        measurementsList.appendChild(listItem);
-                    }
-                }
-
-            } catch (error) {
-                console.error("Error fetching air quality data:", error);
-                alert("Failed to load air quality data.");
+        try {
+            // Najskôr uložíme údaje do databázy
+            if (city === "Trnovec nad Váhom") {
+                await fetch(`/airquality/agdata?city=${encodeURIComponent(city)}`);
+            } else {
+                await fetch(`/airquality?city=${encodeURIComponent(city)}`);
             }
+
+            // Potom načítame údaje z databázy a zobrazíme ich
+            const response = await fetch(`/airquality/db?city=${encodeURIComponent(city)}`);
+            const data = await response.json();
+
+            if (data.error) {
+                alert("Error: " + data.error);
+                return;
+            }
+
+            document.getElementById("aqi").innerText = data.aqi !== null ? data.aqi : "N/A";
+            document.getElementById("dominant").innerText = data.dominantPollutant || "Unknown";
+
+            const measurementsList = document.getElementById("measurements");
+            measurementsList.innerHTML = "";
+
+            if (data.measurements) {
+                const measurements = typeof data.measurements === "string" ? JSON.parse(data.measurements) : data.measurements;
+                for (const [key, value] of Object.entries(measurements)) {
+                    const listItem = document.createElement("li");
+                    listItem.innerText = `${key.toUpperCase()}: ${value}`;
+                    measurementsList.appendChild(listItem);
+                }
+            }
+
+        } catch (error) {
+            console.error("Error fetching air quality data:", error);
+            alert("Failed to load air quality data.");
         }
-    </script>
+    }
+</script>
+
+   
 </body>
 </html>
