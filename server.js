@@ -8,6 +8,7 @@ const flash = require('express-flash');
 const passport = require('passport');
 const axios = require('axios'); //na odosielanie HTTP požiadaviek
 
+const crypto = require('crypto'); //na generovanie api klucu
 
 app.use(express.static('public'));//na staticke subory co su v public (obrazky,script,css)
 
@@ -19,7 +20,7 @@ const initializePassport = require ("./passportConfig");
 initializePassport(passport);
 
 const AQICN_API_KEY = process.env.AQICN_API_KEY;
-console.log("API KEY:", process.env.AQICN_API_KEY); //kontrol log
+ 
 
 
 
@@ -73,7 +74,7 @@ app.get('/airquality', async (req, res) => {
 
     const city = req.query.city; // Mesto z query parametrov
 
-    console.log("Requested city:", city); // Logovanie 
+    //console.log("Requested city:", city);
 
     if (!city) {
         return res.status(400).json({ error: "City is required" });
@@ -81,7 +82,7 @@ app.get('/airquality', async (req, res) => {
 
     try {
         const response = await axios.get(`https://api.waqi.info/feed/${city}/?token=${AQICN_API_KEY}`);
-        console.log("API Response:", response.data); // Logovanie odpovede
+        //console.log("API Response:", response.data); 
         if (response.data.status === "ok") {
             const data = response.data.data; //udaje z api 
 
@@ -103,12 +104,13 @@ app.get('/airquality', async (req, res) => {
 
             try {
                 await pool.query(
-                    `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements) 
-                     VALUES ($1, $2, $3, $4) 
+                    `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source) 
+                    VALUES ($1, $2, $3, $4, $5) 
                      ON CONFLICT (city)  
                      DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant, 
-                                   measurements = EXCLUDED.measurements, timestamp = CURRENT_TIMESTAMP`,
-                    [city, aqi, dominantPollutant, measurements]
+                   measurements = EXCLUDED.measurements, source = EXCLUDED.source,
+                   timestamp = CURRENT_TIMESTAMP`,
+    [city, aqi, dominantPollutant, measurements, "waqi"]
                 );
                 console.log(`Data for ${city} saved to database.`);
             } catch (dbError) {
@@ -139,7 +141,7 @@ app.get('/airquality/agdata', async (req, res) => {
             headers: { Authorization: `Bearer ${AGDATA_API_KEY}` }
         });
 
-        console.log("First Sensor Data:", JSON.stringify(response.data.data[0], null, 2));
+        //console.log("First Sensor Data:", JSON.stringify(response.data.data[0], null, 2));
 
         if (!response.data || response.data.data.length === 0) {
             return res.status(404).json({ error: "No data found from Agdata API" });
@@ -180,15 +182,15 @@ app.get('/airquality/agdata', async (req, res) => {
 
        try {
            await pool.query(
-               `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements) 
-                VALUES ($1, $2, $3, $4) 
-                ON CONFLICT (city)  
-                DO UPDATE SET  aqi = EXCLUDED.aqi,dominant_pollutant = EXCLUDED.dominant_pollutant, 
-                              measurements = EXCLUDED.measurements, 
-                              timestamp = CURRENT_TIMESTAMP`,
-               [city, aqi, dominantPollutant, measurements]
+            `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source) 
+            VALUES ($1, $2, $3, $4, $5) 
+            ON CONFLICT (city)  
+            DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant, 
+                          measurements = EXCLUDED.measurements, source = EXCLUDED.source,
+                          timestamp = CURRENT_TIMESTAMP`,
+           [city, aqi, dominantPollutant, measurements, "agdata"]
            );
-           console.log(`Data for ${city} saved to database.`);
+           //console.log(`Data for ${city} saved to database.`);
        } catch (dbError) {
            console.error("Error saving Agdata data to database:", dbError);
        }
@@ -207,6 +209,104 @@ app.get('/airquality/agdata', async (req, res) => {
         res.status(500).json({ error: "Failed to fetch data from Agdata API" });
     }
 });
+
+
+//AQ API 
+app.get('/airquality/openaq/sensor', async (req, res) => {
+    const sensorId = req.query.sensorId;
+    const city = req.query.city || 'OpenAQ Sensor'; //potom doplnit nazvy podla sensorId
+    const AQ_API_KEY = process.env.AQ_API_KEY;
+
+    if (!sensorId) {
+        return res.status(400).json({ error: "sensorId is required" });
+    }
+
+    try {
+        const response = await axios.get(`https://api.openaq.org/v3/sensors/${sensorId}/measurements`, {
+            headers: {
+                "X-API-Key": AQ_API_KEY
+            }
+        });
+
+        const measurementsArray = response.data.results;
+
+        if (!measurementsArray || measurementsArray.length === 0) {
+            return res.status(404).json({ error: "No measurements found for this sensor" });
+        }
+
+        
+        const latestValues = {};
+        for (const entry of measurementsArray) {
+            const param = entry.parameter.name;
+            const value = entry.value;
+            if (!(param in latestValues)) {
+                latestValues[param] = value;
+            }
+        }
+
+        if (Object.keys(latestValues).length === 0) {
+            return res.status(404).json({ error: "No valid measurement values found" });
+        }
+
+        // Výpočet AQI – len ak su dostupn PM hodnoty
+        const pm25 = latestValues.pm25 || null;
+        const pm10 = latestValues.pm10 || null;
+
+        const aqi_pm25 = pm25 !== null ? calculateAQI(pm25, pm25_breakpoints) : null;
+        const aqi_pm10 = pm10 !== null ? calculateAQI(pm10, pm10_breakpoints) : null;
+
+        let aqi = null;
+        if (aqi_pm25 !== null && aqi_pm10 !== null) {
+            aqi = Math.max(aqi_pm25, aqi_pm10);
+        } else if (aqi_pm25 !== null) {
+            aqi = aqi_pm25;
+        } else if (aqi_pm10 !== null) {
+            aqi = aqi_pm10;
+        }
+
+        // Dominantný prvok. iba ak máme aspoň jeden parameter
+        let dominantPollutant = null;
+        const measurementKeys = Object.keys(latestValues);
+        if (measurementKeys.length > 0) {
+            dominantPollutant = measurementKeys.reduce((a, b) =>
+                latestValues[a] > latestValues[b] ? a : b
+            );
+        }
+
+        // Uloženie do DB
+        await pool.query(
+            `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (city)
+            DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant,
+                   measurements = EXCLUDED.measurements, source = EXCLUDED.source,
+                   timestamp = CURRENT_TIMESTAMP`,
+    [city, aqi, dominantPollutant, JSON.stringify(latestValues), "openaq"]
+        );
+
+        //console.log(`OpenAQ sensor data for ${city} saved to DB`);
+
+        res.json({
+            city,
+            aqi,
+            dominantPollutant,
+            measurements: latestValues
+        });
+
+    } catch (error) {
+        console.error("Error fetching OpenAQ sensor data:");
+        if (error.response) {
+            console.error("Status:", error.response.status);
+            console.error("Data:", error.response.data);
+        } else if (error.request) {
+            console.error("No response received:", error.request);
+        } else {
+            console.error("Error message:", error.message);
+        }
+        res.status(500).json({ error: "Failed to fetch data from OpenAQ sensor API" });
+    }
+});
+
 
 //na ziskanie udajov z databazy 
 app.get('/airquality/db', async (req, res) => {
@@ -227,7 +327,7 @@ app.get('/airquality/db', async (req, res) => {
             return res.status(404).json({ error: "No data found for this city" });
         }
 
-        // Vyberieme prvý záznam (mesto by malo mať len 1 záznam)
+        // Vyberieme prvý záznam 
         const { aqi, dominant_pollutant, measurements, timestamp } = result.rows[0];
 
         res.json({
@@ -259,9 +359,16 @@ app.get('/users/login',checkAuthenticated ,(req, res) => {
     res.render("login"); 
 })
 
-app.get('/users/dashboard', checkNotAuthenticated,(req, res) => {
-    res.render("dashboard", {user: req.user.name}); 
-})
+app.get('/users/dashboard', checkNotAuthenticated, async (req, res) => {
+    try {
+        const result = await pool.query('SELECT api_key FROM users WHERE id = $1', [req.user.id]);
+        const apiKey = result.rows[0].api_key;
+        res.render("dashboard", { user: req.user.name, apiKey });
+    } catch (err) {
+        console.error("Error fetching API key", err);
+        res.send("Error loading dashboard");
+    }
+});
 app.get('/users/logout', (req, res, next) => {
     req.logOut((err) => {
         if (err) {
@@ -276,7 +383,7 @@ app.get('/users/logout', (req, res, next) => {
 //REGISTER
 app.post('/users/register', async (req, res) => {
     let {name, email, password, password2} = req.body;
-console.log({name, email, password, password2});
+//console.log({name, email, password, password2});
 
 let errors = [];    
 
@@ -297,8 +404,9 @@ if(errors.length > 0){
 }else{
     //validacia presla
     let hashedPassword = await bcrypt.hash(password , 10);
+    const apiKey = crypto.randomBytes(32).toString('hex');
 
-    console.log("hashedPassword :", hashedPassword) 
+    //console.log("hashedPassword :", hashedPassword) 
 
     pool.query(
         `SELECT * FROM users WHERE email = $1` , [email], 
@@ -306,21 +414,21 @@ if(errors.length > 0){
             if (err) {
                 throw err;
             }
-            console.log(results.rows);
+            //console.log(results.rows);
             if(results.rows.length > 0){
                 errors.push({message: "Email already registered"});
                 res.render("register", {errors});
             }else{
                 //uzivatel nebol najdeny
                 pool.query(
-                    `INSERT INTO users (name, email, password) VALUES ($1, $2, $3)
+                    `INSERT INTO users (name, email, password, api_key) VALUES ($1, $2, $3 , $4)
                     RETURNING id, password`, 
-                    [name, email, hashedPassword], 
+                    [name, email, hashedPassword, apiKey], 
                     (err, results)=> {
                         if (err) {
                             throw err;
                         }
-                        console.log(results.rows);
+                        //console.log(results.rows);
                         req.flash("success_msg", "You are registered and can now log in");
                         res.redirect("/users/login");
                     }

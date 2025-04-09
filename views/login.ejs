@@ -11,15 +11,16 @@
     <h1>Login</h1>
 
     <ul>
-    <% if (messages.success_msg) { %>
-        <li><%=messages.success_msg%></li>
+        <% if (messages.error) { %>
+            <% messages.error.forEach(function(msg) { %>
+                <li style="color: red;"><%= msg %></li>
+            <% }); %>
         <% } %>
-
-    </ul>   
     
-    <ul>
-        <% if (messages.error_msg) { %>
-            <li><%=messages.error_msg%></li>
+        <% if (messages.success_msg) { %>
+            <% messages.success_msg.forEach(function(msg) { %>
+                <li style="color: green;"><%= msg %></li>
+            <% }); %>
         <% } %>
        
     </ul>
