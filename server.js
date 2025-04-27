@@ -13,6 +13,11 @@ const csv = require('csv-parser');
 const crypto = require('crypto'); //na generovanie api klucu
 const apiAuthRateLimit = require('./middleware/apiAuthRateLimit');
 
+//na tokeny
+const jwt = require('jsonwebtoken'); 
+const authenticateToken = require('./middleware/authenticateToken');
+
+
 app.use(express.static('public'));//na staticke subory co su v public (obrazky,script,css)
 
 
@@ -114,8 +119,9 @@ const pm10_breakpoints = [
 ];
 
 //hlavny
+app.get('/airquality', authenticateToken, async (req, res) => {
 //app.get('/airquality', apiAuthRateLimit, async (req, res) => {
-app.get('/airquality', async (req, res) => {
+//app.get('/airquality', async (req, res) => {
     const id = req.query.id;
     const queryName = req.query.query_name?.toLowerCase();
   
@@ -371,4 +377,52 @@ function checkNotAuthenticated (req, res, next){
 
 app.listen(PORT,()=> {
     console.log(`Server is running on port ${PORT}`);
+});
+
+
+
+//na vytvorenie tokenu ked pouzivatel nechce ist cez stranku 
+app.post('/api/login', async (req, res) => {
+    const { email, password } = req.body;
+
+    try {
+        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+
+        if (userResult.rows.length === 0) {
+            return res.status(401).json({ error: 'User not found' });
+        }
+
+        const user = userResult.rows[0];
+        const validPassword = await bcrypt.compare(password, user.password);
+
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Incorrect password' });
+        }
+
+        const accessToken = jwt.sign(
+            { id: user.id, email: user.email },
+            process.env.JWT_SECRET,
+            { expiresIn: '15m' } // token platí 15 minút
+        );
+
+        res.json({ accessToken });
+    } catch (err) {
+        console.error('API login error:', err.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+//ziskanie tokenu po prihlaseni 
+app.get('/users/api-token', checkNotAuthenticated, (req, res) => {
+  if (!req.user) {
+    return res.redirect('/users/login');
+  }
+
+  const accessToken = jwt.sign(
+    { id: req.user.id, email: req.user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+
+  res.render('api-token', { token: accessToken });
 });

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <title>Tvoj API Token</title>
+</head>
+<body>
+  <h1>Tvoj API Token</h1>
+  <pre id="token"><%= token %></pre>
+
+  <p>Tento token bol automaticky uložený do tvojho prehliadača.</p>
+
+  <button id="back-to-dashboard">← Späť na dashboard</button>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tokenElement = document.getElementById('token');
+      const backButton = document.getElementById('back-to-dashboard');
+
+      if (!tokenElement || !backButton) {
+        console.error('Elementy token alebo button neboli nájdené.');
+        return;
+      }
+
+      const token = tokenElement.textContent.trim();
+
+      if (token) {
+        localStorage.setItem('apiAccessToken', token);
+        console.log('Token uložený do localStorage.');
+      } else {
+        console.warn('Token nie je dostupný.');
+      }
+
+      backButton.addEventListener('click', () => {
+        console.log('Kliknuté na späť na dashboard.');
+        window.location.href = '/users/dashboard';
+      });
+    });
+  </script>
+</body>
+</html>

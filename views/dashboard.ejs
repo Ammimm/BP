@@ -7,23 +7,28 @@
     <link rel="icon" type="image/png" href="/images/favicon.ico">
 </head>
 <body>
-    <a href="/users/logout"> Logout</a>
-   <h1>hello <%= user %></h1> 
-   <p>Your API key: <%= apiKey %></p>
-   <label for="city">Choose a city:</label>
-   <select id="city"></select>
-   <button onclick="getAirQuality()">Get Air Quality</button>
 
+    <a href="/users/logout">Logout</a>
+    <a href="/users/api-token">Zobraziť môj API token</a>
 
-<h2>Air Quality Data</h2>
-<p><strong>Selected City:</strong> <span id="selected-city">None</span></p>
-<p><strong>Air Quality Index (AQI):</strong> <span id="aqi">-</span></p>
-<p><strong>Dominant Pollutant:</strong> <span id="dominant">-</span></p>
-<h3>Measured Values:</h3>
-<ul id="measurements"></ul>
+    <h1>Hello <%= user %></h1> 
+    <p>Your API key: <%= apiKey %></p>
 
+    <label for="city">Choose a city:</label>
+    <select id="city"></select>
 
+    <button onclick="getAirQuality()">Get Air Quality</button>
 
-<script src="/js/main.js" defer></script> 
+    <h2>Air Quality Data</h2>
+    <p><strong>Selected City:</strong> <span id="selected-city">None</span></p>
+    <p><strong>Air Quality Index (AQI):</strong> <span id="aqi">-</span></p>
+    <p><strong>Dominant Pollutant:</strong> <span id="dominant">-</span></p>
+    <h3>Measured Values:</h3>
+    <ul id="measurements"></ul>
+
+   
+
+    <script src="/js/main.js" defer></script>
+
 </body>
 </html>
