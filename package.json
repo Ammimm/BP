@@ -18,11 +18,13 @@
     "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-flash": "^0.0.2",
+    "express-rate-limit": "^7.5.0",
     "express-session": "^1.18.1",
     "node-fetch": "^2.7.0",
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
-    "pg": "^8.13.3"
+    "pg": "^8.13.3",
+    "string-similarity": "^4.0.4"
   },
   "devDependencies": {
     "nodemon": "^3.1.9"

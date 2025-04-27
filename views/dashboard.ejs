@@ -10,21 +10,10 @@
     <a href="/users/logout"> Logout</a>
    <h1>hello <%= user %></h1> 
    <p>Your API key: <%= apiKey %></p>
-
-   <!-- API -->
    <label for="city">Choose a city:</label>
-<select id="city">
-    <option value="Bratislava">Bratislava</option>
-    <option value="Kosice">Košice</option>
-    <option value="Zilina">Žilina</option>
-    <option value="Presov">Prešov</option>
-    <option value="Martin">Martin</option>
-    <option value="A478879">Prečín (stanica)</option>
-    <option value="Banska Bystrica">Banská Bystrica</option>
-    <option value="Trnovec nad Váhom">Trnovec nad Váhom</option> <!-- Agdata API -->
-</select>
+   <select id="city"></select>
+   <button onclick="getAirQuality()">Get Air Quality</button>
 
-<button onclick="getAirQuality()">Get Air Quality</button>
 
 <h2>Air Quality Data</h2>
 <p><strong>Selected City:</strong> <span id="selected-city">None</span></p>

@@ -7,8 +7,11 @@ const session = require('express-session');
 const flash = require('express-flash');
 const passport = require('passport');
 const axios = require('axios'); //na odosielanie HTTP požiadaviek
+const fs = require('fs'); // na nacitanie CSV
+const csv = require('csv-parser'); 
 
 const crypto = require('crypto'); //na generovanie api klucu
+const apiAuthRateLimit = require('./middleware/apiAuthRateLimit');
 
 app.use(express.static('public'));//na staticke subory co su v public (obrazky,script,css)
 
@@ -20,7 +23,7 @@ const initializePassport = require ("./passportConfig");
 initializePassport(passport);
 
 const AQICN_API_KEY = process.env.AQICN_API_KEY;
- 
+ const AQ_API_KEY= process.env.AQ_API_KEY;
 
 
 
@@ -45,6 +48,48 @@ app.use(passport.session());
 
 app.use(flash()); 
 
+//Pomocná funkcia na kontrolu aktualnosti
+function isDataRecent(timestamp) {
+    const now = new Date();
+    const ts = new Date(timestamp);
+    const diffMinutes = (now - ts) / (1000 * 60);
+    return diffMinutes < 60;
+  }
+
+const matchedLocations = {};
+const matchedCSVPath = 'data/results/matched_locations.csv';
+
+fs.createReadStream(matchedCSVPath)
+  .pipe(csv({ separator: ';' }))
+  .on('data', (row) => {
+    const id = row.id;
+    const queryName = row.query_name?.toLowerCase();
+    matchedLocations[id] = row;
+    if (queryName) matchedLocations[queryName] = row; 
+  })
+  .on('end', () => {
+    console.log(`matched_locations.csv načítané. Záznamov: ${Object.keys(matchedLocations).length}`);
+  });
+
+
+// API endpoint na získanie zoznamu miest pre frontend
+app.get('/locations', (req, res) => {
+  const locationsList = Object.values(matchedLocations)
+    .filter((row, index, self) =>
+      // vyfiltrujeme len unikátne podľa ID (aby sme nezobrazili záznam aj podľa názvu aj podľa ID)
+      index === self.findIndex(r => r.id === row.id)
+    )
+    .map(row => ({
+      id: row.id,
+      name: row.query_name || row.location_from_coords || row.location_name || 'Neznáma lokalita'
+    }));
+
+  res.json(locationsList);
+});
+
+
+
+
 // funkcia na vypocet AQI --dat neskor zvlast
 function calculateAQI(concentration, breakpoints) {
     for (let i = 0; i < breakpoints.length - 1; i++) {
@@ -68,281 +113,129 @@ const pm10_breakpoints = [
     [255, 354, 151, 200], [355, 424, 201, 300], [425, 604, 301, 500]
 ];
 
-
-// Route na ziskanie kvality ovzdusia podla mesta
+//hlavny
+//app.get('/airquality', apiAuthRateLimit, async (req, res) => {
 app.get('/airquality', async (req, res) => {
-
-    const city = req.query.city; // Mesto z query parametrov
-
-    //console.log("Requested city:", city);
-
-    if (!city) {
-        return res.status(400).json({ error: "City is required" });
+    const id = req.query.id;
+    const queryName = req.query.query_name?.toLowerCase();
+  
+    if (!id && !queryName) {
+      return res.status(400).json({ error: 'Zadaj buď ?id alebo ?query_name' });
     }
-
+  
+    const record = matchedLocations[id] || matchedLocations[queryName];
+    if (!record) {
+      return res.status(404).json({ error: 'Lokalita nebola nájdená' });
+    }
+  
+    const city = record.query_name || record.location_from_coords || record.location_name || 'Unknown';
+  
+    //  Najprv  údaje z DB 
     try {
-        const response = await axios.get(`https://api.waqi.info/feed/${city}/?token=${AQICN_API_KEY}`);
-        //console.log("API Response:", response.data); 
-        if (response.data.status === "ok") {
-            const data = response.data.data; //udaje z api 
-
-            // ak data neobsahuje nastavim null 
-            const aqi = data.aqi || null;
-            const dominantPollutant = data.dominentpol || null;
-
-            //doplnene 
-            // Prekonvertovanie iaqi do rovnakého formátu ako agData
-            let convertedMeasurements = {};
-            if (data.iaqi) {
-                for (const [key, value] of Object.entries(data.iaqi)) {
-                    convertedMeasurements[key] = value.v; // Uchováme len číselné hodnoty
-                }
-            }
-            //const measurements = data.iaqi ? JSON.stringify(data.iaqi) : '{}'; //measurmetns prevedieme na json 
-            // Prevod na JSON string pre ukladanie do DB
-            const measurements = JSON.stringify(convertedMeasurements); 
-
-            try {
-                await pool.query(
-                    `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source) 
-                    VALUES ($1, $2, $3, $4, $5) 
-                     ON CONFLICT (city)  
-                     DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant, 
-                   measurements = EXCLUDED.measurements, source = EXCLUDED.source,
-                   timestamp = CURRENT_TIMESTAMP`,
-    [city, aqi, dominantPollutant, measurements, "waqi"]
-                );
-                console.log(`Data for ${city} saved to database.`);
-            } catch (dbError) {
-                console.error("Error saving to database:", dbError);
-            }
-
-            res.json(data);
-        } else {
-            res.status(404).json({ error: "Data not found" });
+      const dbResult = await pool.query(
+        `SELECT * FROM air_quality WHERE city = $1`,
+        [city]
+      );
+  
+      if (dbResult.rows.length > 0) {
+        const dbRow = dbResult.rows[0];
+        if (dbRow.datatimestamp && isDataRecent(dbRow.datatimestamp)) {
+          return res.json(dbRow); //  vrátime z DB
         }
-    } catch (error) {
-        console.error("Error fetching air quality data:", error);
-        res.status(500).json({ error: "Failed to fetch data" });
+      }
+    } catch (err) {
+      console.error(' DB chyba:', err.message);
+      return res.status(500).json({ error: 'DB chyba' });
     }
-});
-
-//AgData
-app.get('/airquality/agdata', async (req, res) => {
-    //const sensorAddr = req.query.sensorAddr || "803428FFFE1CCEE9"; // iba jeden senzor
-    //const AGDATA_API_URL = `https://api.agdata.cz/sensors?sensorAddr=${sensorAddr}`;
-    const AGDATA_API_URL = `https://api.agdata.cz/sensors?sensorAddr=803428FFFE1CCEE9`;
-    const AGDATA_API_KEY = process.env.AGDATA_API_KEY; 
-    const city = "Trnovec nad Váhom";
-    //console.log("Agdata API KEY:", AGDATA_API_KEY );
-
-    try {
-        const response = await axios.get(AGDATA_API_URL, {
-            headers: { Authorization: `Bearer ${AGDATA_API_KEY}` }
-        });
-
-        //console.log("First Sensor Data:", JSON.stringify(response.data.data[0], null, 2));
-
-        if (!response.data || response.data.data.length === 0) {
-            return res.status(404).json({ error: "No data found from Agdata API" });
-        }
-
-        const firstSensorData = response.data.data[0]; // Zoberieme len prvý záznam
-        const sensorId = firstSensorData.id;
-        const pm10 = firstSensorData.data.pm10 || null;
-        const pm25 = firstSensorData.data.pm25 || null;
-        const pm40 = firstSensorData.data.pm40 || null;
-        const pm100 = firstSensorData.data.pm100 || null;
-        const so2 = firstSensorData.data.so2 || null;
-        const airQualityIndex = firstSensorData.recommendation.index || null;
-        const timestamp = firstSensorData.date || new Date().toISOString();
-
-
-        // Výpočet AQI pre PM₂.₅ a PM₁₀
-        const aqi_pm25 = pm25 !== null ? calculateAQI(pm25, pm25_breakpoints) : null;
-        const aqi_pm10 = pm10 !== null ? calculateAQI(pm10, pm10_breakpoints) : null;
-
-        // Finálne AQI = max(AQI_PM25, AQI_PM10), ak obe hodnoty existujú
-        let aqi = null;
-        if (aqi_pm25 !== null && aqi_pm10 !== null) {
-            aqi = Math.max(aqi_pm25, aqi_pm10);
-        } else if (aqi_pm25 !== null) {
-            aqi = aqi_pm25;
-        } else if (aqi_pm10 !== null) {
-            aqi = aqi_pm10;
-        }
-
-
-       // Výber dominantného znečisťujúceho prvku
-       const pollutants = { pm10, pm25, pm40, pm100, so2 };
-       const dominantPollutant = Object.keys(pollutants).reduce((a, b) => pollutants[a] > pollutants[b] ? a : b);
-
-       // Uloženie do databázy
-       const measurements = JSON.stringify(pollutants); // Prevod údajov na JSON reťazec
-
-       try {
-           await pool.query(
-            `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source) 
-            VALUES ($1, $2, $3, $4, $5) 
-            ON CONFLICT (city)  
-            DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant, 
-                          measurements = EXCLUDED.measurements, source = EXCLUDED.source,
-                          timestamp = CURRENT_TIMESTAMP`,
-           [city, aqi, dominantPollutant, measurements, "agdata"]
-           );
-           //console.log(`Data for ${city} saved to database.`);
-       } catch (dbError) {
-           console.error("Error saving Agdata data to database:", dbError);
-       }
-
-       // Odpoveď klientovi
-       res.json({
-           city,
-           aqi,
-           dominantPollutant,
-           measurements: pollutants,
-           timestamp
-       });
-
-    } catch (error) {
-        console.error("Error fetching Agdata data:", error);
-        res.status(500).json({ error: "Failed to fetch data from Agdata API" });
-    }
-});
-
-
-//AQ API 
-app.get('/airquality/openaq/sensor', async (req, res) => {
-    const sensorId = req.query.sensorId;
-    const city = req.query.city || 'OpenAQ Sensor'; //potom doplnit nazvy podla sensorId
-    const AQ_API_KEY = process.env.AQ_API_KEY;
-
-    if (!sensorId) {
-        return res.status(400).json({ error: "sensorId is required" });
-    }
-
-    try {
-        const response = await axios.get(`https://api.openaq.org/v3/sensors/${sensorId}/measurements`, {
-            headers: {
-                "X-API-Key": AQ_API_KEY
-            }
-        });
-
-        const measurementsArray = response.data.results;
-
-        if (!measurementsArray || measurementsArray.length === 0) {
-            return res.status(404).json({ error: "No measurements found for this sensor" });
-        }
-
-        
-        const latestValues = {};
-        for (const entry of measurementsArray) {
-            const param = entry.parameter.name;
-            const value = entry.value;
-            if (!(param in latestValues)) {
-                latestValues[param] = value;
-            }
-        }
-
-        if (Object.keys(latestValues).length === 0) {
-            return res.status(404).json({ error: "No valid measurement values found" });
-        }
-
-        // Výpočet AQI – len ak su dostupn PM hodnoty
-        const pm25 = latestValues.pm25 || null;
-        const pm10 = latestValues.pm10 || null;
-
-        const aqi_pm25 = pm25 !== null ? calculateAQI(pm25, pm25_breakpoints) : null;
-        const aqi_pm10 = pm10 !== null ? calculateAQI(pm10, pm10_breakpoints) : null;
-
-        let aqi = null;
-        if (aqi_pm25 !== null && aqi_pm10 !== null) {
-            aqi = Math.max(aqi_pm25, aqi_pm10);
-        } else if (aqi_pm25 !== null) {
-            aqi = aqi_pm25;
-        } else if (aqi_pm10 !== null) {
-            aqi = aqi_pm10;
-        }
-
-        // Dominantný prvok. iba ak máme aspoň jeden parameter
-        let dominantPollutant = null;
-        const measurementKeys = Object.keys(latestValues);
-        if (measurementKeys.length > 0) {
-            dominantPollutant = measurementKeys.reduce((a, b) =>
-                latestValues[a] > latestValues[b] ? a : b
-            );
-        }
-
-        // Uloženie do DB
+  
+    //  WAQI – ak máme uid_prefixed
+    if (record.uid_prefixed) {
+      try {
+        const waqiUrl = `https://api.waqi.info/feed/${record.uid_prefixed}/?token=${AQICN_API_KEY}`;
+        const response = await axios.get(waqiUrl);
+        const data = response.data.data;
+  
+        const aqi = data.aqi ?? null;
+        const dominantPollutant = data.dominentpol ?? null;
+        const datatimestamp = data.time?.iso ?? null;
+  
+        const measurements = Object.fromEntries(
+          Object.entries(data.iaqi || {}).map(([k, v]) => [k, v.v])
+        );
+  
         await pool.query(
-            `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source)
-            VALUES ($1, $2, $3, $4, $5)
-            ON CONFLICT (city)
-            DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant,
-                   measurements = EXCLUDED.measurements, source = EXCLUDED.source,
-                   timestamp = CURRENT_TIMESTAMP`,
-    [city, aqi, dominantPollutant, JSON.stringify(latestValues), "openaq"]
+          `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source, datatimestamp, timestamp)
+           VALUES ($1, $2, $3, $4, 'waqi', $5, CURRENT_TIMESTAMP)
+           ON CONFLICT (city)
+           DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant,
+                         measurements = EXCLUDED.measurements, source = 'waqi',
+                         datatimestamp = EXCLUDED.datatimestamp, timestamp = CURRENT_TIMESTAMP`,
+          [city, aqi, dominantPollutant, JSON.stringify(measurements), datatimestamp]
         );
-
-        //console.log(`OpenAQ sensor data for ${city} saved to DB`);
-
-        res.json({
-            city,
-            aqi,
-            dominantPollutant,
-            measurements: latestValues
-        });
-
-    } catch (error) {
-        console.error("Error fetching OpenAQ sensor data:");
-        if (error.response) {
-            console.error("Status:", error.response.status);
-            console.error("Data:", error.response.data);
-        } else if (error.request) {
-            console.error("No response received:", error.request);
-        } else {
-            console.error("Error message:", error.message);
+  
+        return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'waqi' });
+  
+      } catch (error) {
+        console.error('WAQI chyba:', error.message);
+        return res.status(500).json({ error: 'WAQI chyba' });
+      }
+    }
+  
+    //OpenAQ 
+    if (record.sensor_ids) {
+      const sensorIds = record.sensor_ids.split(',').map(s => s.trim());
+      const measurements = {};
+      let datatimestamp = null;
+  
+      for (const sensorId of sensorIds) {
+        try {
+          const response = await axios.get(`https://api.openaq.org/v3/sensors/${sensorId}`, {
+            headers: { 'X-API-Key': AQ_API_KEY }
+          });
+          const sensor = response.data.results[0];
+          if (sensor?.latest) {
+            measurements[sensor.parameter.name] = sensor.latest.value;
+  
+            const ts = sensor.latest.datetime?.local;
+            if (ts && (!datatimestamp || new Date(ts) > new Date(datatimestamp))) {
+              datatimestamp = ts;
+            }
+          }
+        } catch (error) {
+          console.warn(`Senzor ${sensorId} chyba:`, error.message);
         }
-        res.status(500).json({ error: "Failed to fetch data from OpenAQ sensor API" });
+      }
+  
+      if (Object.keys(measurements).length === 0) {
+        return res.status(404).json({ error: 'Žiadne dáta zo senzorov' });
+      }
+  
+      const pm25 = measurements.pm25 ?? null;
+      const pm10 = measurements.pm10 ?? null;
+      const aqi_pm25 = pm25 !== null ? calculateAQI(pm25, pm25_breakpoints) : null;
+      const aqi_pm10 = pm10 !== null ? calculateAQI(pm10, pm10_breakpoints) : null;
+      const aqi = Math.max(aqi_pm25 ?? 0, aqi_pm10 ?? 0) || null;
+  
+      const dominantPollutant = Object.keys(measurements).reduce((a, b) =>
+        measurements[a] > measurements[b] ? a : b
+      );
+  
+      await pool.query(
+        `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source, datatimestamp, timestamp)
+         VALUES ($1, $2, $3, $4, 'openaq', $5, CURRENT_TIMESTAMP)
+         ON CONFLICT (city)
+         DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant,
+                       measurements = EXCLUDED.measurements, source = 'openaq',
+                       datatimestamp = EXCLUDED.datatimestamp, timestamp = CURRENT_TIMESTAMP`,
+        [city, aqi, dominantPollutant, JSON.stringify(measurements), datatimestamp]
+      );
+  
+      return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'openaq' });
     }
-});
-
-
-//na ziskanie udajov z databazy 
-app.get('/airquality/db', async (req, res) => {
-    const city = req.query.city;
-
-    if (!city) {
-        return res.status(400).json({ error: "City is required" });
-    }
-
-    try {
-        // Načítanie údajov z databázy
-        const result = await pool.query(
-            `SELECT aqi, dominant_pollutant, measurements, timestamp FROM air_quality WHERE city = $1`,
-            [city]
-        );
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: "No data found for this city" });
-        }
-
-        // Vyberieme prvý záznam 
-        const { aqi, dominant_pollutant, measurements, timestamp } = result.rows[0];
-
-        res.json({
-            city,
-            aqi,
-            dominantPollutant: dominant_pollutant,
-            measurements,
-            timestamp
-        });
-
-    } catch (error) {
-        console.error("Error fetching air quality data from database:", error);
-        res.status(500).json({ error: "Failed to fetch data from database" });
-    }
-});
+  
+    res.status(404).json({ error: 'Neboli nájdené žiadne dáta pre túto lokalitu' });
+  });
+  
 
 
 
@@ -361,8 +254,12 @@ app.get('/users/login',checkAuthenticated ,(req, res) => {
 
 app.get('/users/dashboard', checkNotAuthenticated, async (req, res) => {
     try {
-        const result = await pool.query('SELECT api_key FROM users WHERE id = $1', [req.user.id]);
-        const apiKey = result.rows[0].api_key;
+      const result = await pool.query(
+        'SELECT key FROM api_keys WHERE user_id = $1 AND is_active = true LIMIT 1',
+        [req.user.id]
+      );
+      
+        const apiKey = result.rows[0].key;
         res.render("dashboard", { user: req.user.name, apiKey });
     } catch (err) {
         console.error("Error fetching API key", err);
@@ -382,65 +279,67 @@ app.get('/users/logout', (req, res, next) => {
 
 //REGISTER
 app.post('/users/register', async (req, res) => {
-    let {name, email, password, password2} = req.body;
-//console.log({name, email, password, password2});
+  let { name, email, password, password2 } = req.body;
+  let errors = [];
 
-let errors = [];    
+  // Validácie
+  if (!name || !email || !password || !password2) {
+    errors.push({ message: "Please fill in all fields" });
+  }
 
-if(!name ||!email ||!password ||!password2){
-    errors.push({message: "Please fill in all fields"});
-}
+  if (password.length < 6) {
+    errors.push({ message: "Password must be at least 6 characters long" });
+  }
 
-if(password.length < 6){
-    errors.push({message: "Password must be at least 6 characters long"});
-}
+  if (password !== password2) {
+    errors.push({ message: "Passwords do not match" });
+  }
 
-if(password!== password2){
-    errors.push({message: "Passwords do not match"});
-}
+  if (errors.length > 0) {
+    return res.render("register", { errors });
+  }
 
-if(errors.length > 0){
-    res.render("register", {errors});
-}else{
-    //validacia presla
-    let hashedPassword = await bcrypt.hash(password , 10);
+  try {
+    // Skontroluj, či už email existuje
+    const existingUser = await pool.query(
+      `SELECT * FROM users WHERE email = $1`,
+      [email]
+    );
+
+    if (existingUser.rows.length > 0) {
+      errors.push({ message: "Email already registered" });
+      return res.render("register", { errors });
+    }
+
+    // Heslo zašifruj
+    const hashedPassword = await bcrypt.hash(password, 10);
     const apiKey = crypto.randomBytes(32).toString('hex');
 
-    //console.log("hashedPassword :", hashedPassword) 
-
-    pool.query(
-        `SELECT * FROM users WHERE email = $1` , [email], 
-        (err,results)=> {
-            if (err) {
-                throw err;
-            }
-            //console.log(results.rows);
-            if(results.rows.length > 0){
-                errors.push({message: "Email already registered"});
-                res.render("register", {errors});
-            }else{
-                //uzivatel nebol najdeny
-                pool.query(
-                    `INSERT INTO users (name, email, password, api_key) VALUES ($1, $2, $3 , $4)
-                    RETURNING id, password`, 
-                    [name, email, hashedPassword, apiKey], 
-                    (err, results)=> {
-                        if (err) {
-                            throw err;
-                        }
-                        //console.log(results.rows);
-                        req.flash("success_msg", "You are registered and can now log in");
-                        res.redirect("/users/login");
-                    }
-                );
-            }
-
-        }
+    // Vlož používateľa do tabuľky users
+    const newUser = await pool.query(
+      `INSERT INTO users (name, email, password) VALUES ($1, $2, $3)
+       RETURNING id`,
+      [name, email, hashedPassword]
     );
-    
-}
 
+    const userId = newUser.rows[0].id;
+
+    // Vlož API kľúč do tabuľky api_keys
+    await pool.query(
+      `INSERT INTO api_keys (user_id, key) VALUES ($1, $2)`,
+      [userId, apiKey]
+    );
+
+    req.flash("success_msg", "You are registered and can now log in");
+    res.redirect("/users/login");
+
+  } catch (err) {
+    console.error(" Chyba pri registrácii:", err.message);
+    errors.push({ message: "Something went wrong. Please try again." });
+    res.render("register", { errors });
+  }
 });
+
 
 
 
