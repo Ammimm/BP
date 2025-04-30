@@ -10,8 +10,11 @@ const axios = require('axios'); //na odosielanie HTTP požiadaviek
 const fs = require('fs'); // na nacitanie CSV
 const csv = require('csv-parser'); 
 
-const crypto = require('crypto'); //na generovanie api klucu
-const apiAuthRateLimit = require('./middleware/apiAuthRateLimit');
+//const crypto = require('crypto'); //na generovanie api klucu
+//const apiAuthRateLimit = require('./middleware/apiAuthRateLimit');
+
+
+app.use(express.json()); // na spravne posielanie post 
 
 //na tokeny
 const jwt = require('jsonwebtoken'); 
@@ -28,11 +31,25 @@ const initializePassport = require ("./passportConfig");
 initializePassport(passport);
 
 const AQICN_API_KEY = process.env.AQICN_API_KEY;
- const AQ_API_KEY= process.env.AQ_API_KEY;
+const AQ_API_KEY= process.env.AQ_API_KEY;
 
 
 
 const PORT = process.env.PORT || 4000;
+
+
+
+//NA TEST EMAILU 
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.ALERT_EMAIL_USER,
+    pass: process.env.ALERT_EMAIL_PASS
+  }
+});
+
 
 
 app.set ('view engine', 'ejs'); //sablonovy engine
@@ -77,11 +94,11 @@ fs.createReadStream(matchedCSVPath)
   });
 
 
-// API endpoint na získanie zoznamu miest pre frontend
-app.get('/locations', (req, res) => {
+// API endpoint na získanie zoznamu miest (aj pre frontend )
+app.get('/locations',authenticateToken,rateLimiter, (req, res) => {
   const locationsList = Object.values(matchedLocations)
     .filter((row, index, self) =>
-      // vyfiltrujeme len unikátne podľa ID (aby sme nezobrazili záznam aj podľa názvu aj podľa ID)
+      // vyfiltrujeme len unikátne podľa ID 
       index === self.findIndex(r => r.id === row.id)
     )
     .map(row => ({
@@ -119,17 +136,17 @@ const pm10_breakpoints = [
 ];
 
 //hlavny
-app.get('/airquality', authenticateToken, async (req, res) => {
-//app.get('/airquality', apiAuthRateLimit, async (req, res) => {
+app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
 //app.get('/airquality', async (req, res) => {
     const id = req.query.id;
+    const rawQueryName = req.query.query_name;
     const queryName = req.query.query_name?.toLowerCase();
   
     if (!id && !queryName) {
       return res.status(400).json({ error: 'Zadaj buď ?id alebo ?query_name' });
     }
   
-    const record = matchedLocations[id] || matchedLocations[queryName];
+    const record = matchedLocations[id] || matchedLocations[queryName]|| matchedLocations[rawQueryName];
     if (!record) {
       return res.status(404).json({ error: 'Lokalita nebola nájdená' });
     }
@@ -258,20 +275,11 @@ app.get('/users/login',checkAuthenticated ,(req, res) => {
     res.render("login"); 
 })
 
-app.get('/users/dashboard', checkNotAuthenticated, async (req, res) => {
-    try {
-      const result = await pool.query(
-        'SELECT key FROM api_keys WHERE user_id = $1 AND is_active = true LIMIT 1',
-        [req.user.id]
-      );
-      
-        const apiKey = result.rows[0].key;
-        res.render("dashboard", { user: req.user.name, apiKey });
-    } catch (err) {
-        console.error("Error fetching API key", err);
-        res.send("Error loading dashboard");
-    }
+app.get('/users/dashboard', checkNotAuthenticated, (req, res) => {
+  res.render("dashboard", { user: req.user.name });
 });
+
+
 app.get('/users/logout', (req, res, next) => {
     req.logOut((err) => {
         if (err) {
@@ -283,12 +291,10 @@ app.get('/users/logout', (req, res, next) => {
 });
 
 
-//REGISTER
 app.post('/users/register', async (req, res) => {
   let { name, email, password, password2 } = req.body;
   let errors = [];
 
-  // Validácie
   if (!name || !email || !password || !password2) {
     errors.push({ message: "Please fill in all fields" });
   }
@@ -306,7 +312,6 @@ app.post('/users/register', async (req, res) => {
   }
 
   try {
-    // Skontroluj, či už email existuje
     const existingUser = await pool.query(
       `SELECT * FROM users WHERE email = $1`,
       [email]
@@ -317,34 +322,23 @@ app.post('/users/register', async (req, res) => {
       return res.render("register", { errors });
     }
 
-    // Heslo zašifruj
     const hashedPassword = await bcrypt.hash(password, 10);
-    const apiKey = crypto.randomBytes(32).toString('hex');
 
-    // Vlož používateľa do tabuľky users
-    const newUser = await pool.query(
-      `INSERT INTO users (name, email, password) VALUES ($1, $2, $3)
-       RETURNING id`,
-      [name, email, hashedPassword]
-    );
-
-    const userId = newUser.rows[0].id;
-
-    // Vlož API kľúč do tabuľky api_keys
     await pool.query(
-      `INSERT INTO api_keys (user_id, key) VALUES ($1, $2)`,
-      [userId, apiKey]
+      `INSERT INTO users (name, email, password) VALUES ($1, $2, $3)`,
+      [name, email, hashedPassword]
     );
 
     req.flash("success_msg", "You are registered and can now log in");
     res.redirect("/users/login");
 
   } catch (err) {
-    console.error(" Chyba pri registrácii:", err.message);
+    console.error("Chyba pri registrácii:", err.message);
     errors.push({ message: "Something went wrong. Please try again." });
     res.render("register", { errors });
   }
 });
+
 
 
 
@@ -365,6 +359,10 @@ function checkAuthenticated (req, res, next)
     next();
 
 }
+app.get('/users/favorites', checkNotAuthenticated, (req, res) => {
+  res.render('favorites');
+});
+
 
 function checkNotAuthenticated (req, res, next){
     if(req.isAuthenticated()){
@@ -421,8 +419,223 @@ app.get('/users/api-token', checkNotAuthenticated, (req, res) => {
   const accessToken = jwt.sign(
     { id: req.user.id, email: req.user.email },
     process.env.JWT_SECRET,
-    { expiresIn: '15m' }
+    { expiresIn: '30m' }
   );
 
   res.render('api-token', { token: accessToken });
 });
+
+
+const userRequestCounts = new Map(); // userId => { count, lastResetTime }
+
+function rateLimiter(req, res, next) {
+    const userId = req.user.id; // z tokenu
+    const now = Date.now();
+
+    const userData = userRequestCounts.get(userId) || { count: 0, lastResetTime: now };
+
+    // Ak prešiel viac ako 1 hodina, resetni počítadlo
+    if (now - userData.lastResetTime > 60 * 60 * 1000) {
+        userData.count = 0;
+        userData.lastResetTime = now;
+    }
+
+    userData.count++;
+
+    if (userData.count > 60) { // pocet poziadaviek tza hodinu 
+        return res.status(429).json({ error: 'Too many API requests. Please wait and try again later.' });
+    }
+
+    userRequestCounts.set(userId, userData);
+
+    next();
+}
+
+//OBLUBENE LOKALITY 
+app.post('/favorites', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { locationId } = req.body;
+
+  if (!locationId) {
+      return res.status(400).json({ error: 'locationId is required' });
+  }
+
+  try {
+      await pool.query(
+          'INSERT INTO favorites (user_id, location_id) VALUES ($1, $2)',
+          [userId, locationId]
+      );
+      res.json({ message: 'Lokalita pridaná medzi obľúbené.' });
+  } catch (err) {
+      console.error('Chyba pri ukladaní obľúbenej lokality:', err.message);
+      res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
+app.get('/favorites', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+      const result = await pool.query(
+          'SELECT * FROM favorites WHERE user_id = $1',
+          [userId]
+      );
+      res.json(result.rows);
+  } catch (err) {
+      console.error('Chyba pri načítavaní obľúbených lokalít:', err.message);
+      res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+app.delete('/favorites/:id', authenticateToken, async (req, res) => {
+  const favoriteId = req.params.id;
+  const userId = req.user.id;
+
+  try {
+      await pool.query(
+          'DELETE FROM favorites WHERE id = $1 AND user_id = $2',
+          [favoriteId, userId]
+      );
+      res.json({ message: 'Lokalita odstránená z obľúbených.' });
+  } catch (err) {
+      console.error('Chyba pri mazání obľúbenej lokality:', err.message);
+      res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+
+app.get('/users/profile', checkNotAuthenticated, (req, res) => {
+  res.render('profile', { user: req.user });
+});
+
+app.post('/users/profile', checkNotAuthenticated, async (req, res) => {
+  const userId = req.user.id;
+  const { name, password, password2 } = req.body;
+  const errors = [];
+
+  if (!name) errors.push({ message: 'Meno je povinné.' });
+
+  if (password) {
+    if (password.length < 6) {
+      errors.push({ message: 'Heslo musí mať aspoň 6 znakov.' });
+    }
+    if (password !== password2) {
+      errors.push({ message: 'Heslá sa nezhodujú.' });
+    }
+  }
+
+  if (errors.length > 0) {
+    return res.render('profile', { user: req.user, errors });
+  }
+
+  try {
+    await pool.query(`UPDATE users SET name = $1 WHERE id = $2`, [name, userId]);
+
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await pool.query(`UPDATE users SET password = $1 WHERE id = $2`, [hashedPassword, userId]);
+    }
+
+    req.flash('success_msg', 'Profil bol aktualizovaný.');
+    res.redirect('/users/dashboard');
+
+  } catch (err) {
+    console.error('Chyba pri aktualizácii profilu:', err.message);
+    res.status(500).send('Chyba servera.');
+  }
+});
+
+
+app.post('/users/delete', checkNotAuthenticated, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    await pool.query('DELETE FROM favorites WHERE user_id = $1', [userId]);
+   // await pool.query('DELETE FROM api_keys WHERE user_id = $1', [userId]);
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+
+    req.logout(() => {
+      req.flash('success_msg', 'Tvoj účet bol zmazaný.');
+      res.redirect('/users/register');
+    });
+
+  } catch (err) {
+    console.error('Chyba pri mazaní účtu:', err.message);
+    res.status(500).send('Chyba servera.');
+  }
+});
+
+
+app.patch('/favorites/:id/alert', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const favoriteId = req.params.id;
+  const { enabled } = req.body;
+
+  try {
+    await pool.query(
+      'UPDATE favorites SET alerts_enabled = $1 WHERE id = $2 AND user_id = $3',
+      [enabled, favoriteId, userId]
+    );
+    res.json({ message: 'Stav upozornenia bol aktualizovaný.' });
+  } catch (err) {
+    console.error('Chyba pri aktualizácii upozornenia:', err.message);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
+//NA TEST MAILU 
+app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
+  const userId = req.user.id;
+  const { locationId } = req.body;
+
+  if (!locationId) {
+    return res.status(400).json({ error: 'Chýba locationId.' });
+  }
+
+  try {
+    // lokalita patrí používateľovi?
+    const result = await pool.query(
+      'SELECT * FROM favorites WHERE user_id = $1 AND location_id = $2',
+      [userId, locationId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(403).json({ error: 'Táto lokalita nie je medzi tvojimi obľúbenými.' });
+    }
+
+    // dáta z airquality
+    const response = await axios.get(`${process.env.SERVER_URL}/airquality?id=${locationId}`, {
+      headers: {
+        Authorization: `Bearer ${process.env.ALERT_INTERNAL_TOKEN}`
+      }
+    });
+
+    const data = response.data;
+
+    await transporter.sendMail({
+      from: `"AIR CHECK" <${process.env.ALERT_EMAIL_USER}>`,
+      to: req.user.email,
+      subject: `📬 Dáta o kvalite ovzdušia – ${data.city}`,
+      html: `
+        <p>Aktuálne údaje z lokality <strong>${data.city}</strong>:</p>
+        <ul>
+          <li>AQI: ${data.aqi}</li>
+          <li>Dominantný prvok: ${data.dominantPollutant || 'neznámy'}</li>
+        </ul>
+        <p><a href="${process.env.SERVER_URL}/users/dashboard">Zobraziť v aplikácii</a></p>
+      `
+    });
+
+    res.json({ message: 'E-mail odoslaný.' });
+
+  } catch (err) {
+    console.error('Chyba pri odoslaní e-mailu:', err.message);
+    res.status(500).json({ error: 'Nepodarilo sa odoslať e-mail.' });
+  }
+});
+

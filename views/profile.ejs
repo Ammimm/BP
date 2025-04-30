@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+  <meta charset="UTF-8">
+  <title>Profil používateľa</title>
+</head>
+<body>
+  <h1>Profil – <%= user.name %></h1>
+
+  <% if (typeof errors !== 'undefined') { %>
+    <ul style="color:red;">
+      <% errors.forEach(error => { %>
+        <li><%= error.message %></li>
+      <% }) %>
+    </ul>
+  <% } %>
+
+  <form method="POST" action="/users/profile">
+    <label for="name">Meno:</label>
+    <input type="text" name="name" value="<%= user.name %>" required><br>
+
+    <label for="password">Nové heslo:</label>
+    <input type="password" name="password" placeholder="Zadaj nové heslo"><br>
+
+    <label for="password2">Zopakuj heslo:</label>
+    <input type="password" name="password2" placeholder="Zopakuj heslo"><br>
+
+    <button type="submit">Uložiť zmeny</button>
+  </form>
+
+  <form method="POST" action="/users/delete" onsubmit="return confirm('Naozaj chceš zmazať svoj účet?');" style="margin-top:20px;">
+    <button type="submit" style="color: red;">❌ Zmazať účet</button>
+  </form>
+
+  <br>
+  <a href="/users/dashboard">⬅ Späť na dashboard</a>
+</body>
+</html>

@@ -8,27 +8,32 @@
 </head>
 <body>
 
-    <a href="/users/logout">Logout</a>
-    <a href="/users/api-token">Zobraziť môj API token</a>
+    <a href="/users/logout">Odhlásiť  </a>
+    <a href="/users/api-token">Zobraziť môj API token  </a>
+    <a href="/users/favorites">Moje obľúbené lokality  </a>
+    <a href="/users/profile">Profil  </a>
 
-    <h1>Hello <%= user %></h1> 
-    <p>Your API key: <%= apiKey %></p>
 
-    <label for="city">Choose a city:</label>
+
+    <h2>Prihlásený ako : <%= user %></h2> 
+    <h1>Zisti kvalitu ovzdušia</h1>
+
+    <label for="city">Vyber lokáciu</label>
     <select id="city"></select>
 
-    <button onclick="getAirQuality()">Get Air Quality</button>
+    <button onclick="getAirQuality()">zisti kvalitu ovzdušia</button>
+    <button onclick="addFavorite()">Pridať medzi obľúbené</button> 
 
-    <h2>Air Quality Data</h2>
-    <p><strong>Selected City:</strong> <span id="selected-city">None</span></p>
-    <p><strong>Air Quality Index (AQI):</strong> <span id="aqi">-</span></p>
-    <p><strong>Dominant Pollutant:</strong> <span id="dominant">-</span></p>
-    <h3>Measured Values:</h3>
+    <h2>Výsledok</h2>
+    <p><strong>Vybraná lokácia:</strong> <span id="selected-city">None</span></p>
+    <p><strong>Index kvality ovzdušia (AQI):</strong> <span id="aqi">-</span></p>
+    <p><strong>Dominantná znečisťujúca látka:</strong> <span id="dominant">-</span></p>
+    <h3>Namerané hodnoty:</h3>
     <ul id="measurements"></ul>
 
    
 
-    <script src="/js/main.js" defer></script>
+    <script src="/js/main.js?v=2" defer></script>
 
 </body>
 </html>
