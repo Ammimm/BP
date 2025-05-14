@@ -95,7 +95,7 @@ fs.createReadStream(matchedCSVPath)
 
 
 // API endpoint na získanie zoznamu miest (aj pre frontend )
-app.get('/locations',authenticateToken,rateLimiter, (req, res) => {
+app.get('/locations',authenticateToken, (req, res) => {
   const locationsList = Object.values(matchedLocations)
     .filter((row, index, self) =>
       // vyfiltrujeme len unikátne podľa ID 

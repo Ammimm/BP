@@ -1,39 +1,66 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AIR CHECK</title>
-    <link rel="icon" type="image/png" href="/images/favicon.ico">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AIR CHECK</title>
+  <link rel="icon" type="image/png" href="/images/favicon.ico">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 
-    <a href="/users/logout">Odhlásiť  </a>
-    <a href="/users/api-token">Zobraziť môj API token  </a>
-    <a href="/users/favorites">Moje obľúbené lokality  </a>
-    <a href="/users/profile">Profil  </a>
+  <!-- Navigácia -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">AIR CHECK</a>
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
 
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav ms-auto">
+        <li class="nav-item">
+            <a class="nav-link" href="/users/dashboard">Domov</a>
+          </li>
+        <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="apiDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              API
+            </a>
+            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="apiDropdown">
+              <li><a class="dropdown-item" href="/users/api-token">Môj API token</a></li>
+              <li><a class="dropdown-item" href="/api-docs">API dokumentácia</a></li>
+            </ul>
+          </li>
+          <li class="nav-item"><a class="nav-link" href="/users/favorites">Obľúbené lokality</a></li>
+          <li class="nav-item"><a class="nav-link" href="/users/profile">Profil</a></li>
+          <li class="nav-item"><a class="nav-link" href="/users/logout">Odhlásiť</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
 
-
-    <h2>Prihlásený ako : <%= user %></h2> 
+  <div class="container">
+    <h2>Prihlásený ako: <%= user %></h2>
     <h1>Zisti kvalitu ovzdušia</h1>
 
-    <label for="city">Vyber lokáciu</label>
-    <select id="city"></select>
+    <div class="mb-3">
+      <label for="city" class="form-label">Vyber lokáciu</label>
+      <select id="city" class="form-select"></select>
+    </div>
 
-    <button onclick="getAirQuality()">zisti kvalitu ovzdušia</button>
-    <button onclick="addFavorite()">Pridať medzi obľúbené</button> 
+    <button class="btn btn-primary me-2" onclick="getAirQuality()">Zisti kvalitu ovzdušia</button>
+    <button class="btn btn-outline-success" onclick="addFavorite()">Pridať medzi obľúbené</button>
 
-    <h2>Výsledok</h2>
+    <h2 class="mt-4">Výsledok</h2>
     <p><strong>Vybraná lokácia:</strong> <span id="selected-city">None</span></p>
     <p><strong>Index kvality ovzdušia (AQI):</strong> <span id="aqi">-</span></p>
     <p><strong>Dominantná znečisťujúca látka:</strong> <span id="dominant">-</span></p>
+
     <h3>Namerané hodnoty:</h3>
-    <ul id="measurements"></ul>
+    <ul id="measurements" class="list-group"></ul>
+  </div>
 
-   
-
-    <script src="/js/main.js?v=2" defer></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/js/main.js?v=2" defer></script>
 </body>
 </html>
