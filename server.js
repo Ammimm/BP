@@ -10,8 +10,7 @@ const axios = require('axios'); //na odosielanie HTTP požiadaviek
 const fs = require('fs'); // na nacitanie CSV
 const csv = require('csv-parser'); 
 
-//const crypto = require('crypto'); //na generovanie api klucu
-//const apiAuthRateLimit = require('./middleware/apiAuthRateLimit');
+const rateLimiter = require('./middleware/rateLimiter'); //limitovanie požiadaviek
 
 
 app.use(express.json()); // na spravne posielanie post 
@@ -285,7 +284,7 @@ app.get('/users/logout', (req, res, next) => {
         if (err) {
             return next(err); // Ak sa vyskytne chyba, posunie ju na middleware
         }
-        req.flash('success_msg', "You have logged out");
+        req.flash('success_msg', "Boli ste odhlásený");
         res.redirect("/users/login");
     });
 });
@@ -341,15 +340,49 @@ app.post('/users/register', async (req, res) => {
 
 
 
+app.post('/users/login', (req, res, next) => {
+  passport.authenticate('local', async (err, user, info) => {
+    if (err) return next(err);
+    if (!user) return res.redirect('/users/login');
+
+    req.logIn(user, async (err) => {
+      if (err) return next(err);
+
+      // Overenie, či už má token
+      const result = await pool.query(
+        'SELECT token FROM api_tokens WHERE user_id = $1 LIMIT 1',
+        [user.id]
+      );
+
+      if (result.rows.length === 0) {
+        // Vytvorenie nového tokenu a uloženie
+        const token = jwt.sign(
+          { id: user.id, email: user.email },
+          process.env.JWT_SECRET,
+          //{ expiresIn: '30m' }
+        );
+
+        await pool.query(
+          'INSERT INTO api_tokens (user_id, token) VALUES ($1, $2)',
+          [user.id, token]
+        );
+      }
+
+      return res.redirect('/users/api-token');
+
+    });
+  })(req, res, next);
+});
 
 
-
+/*
 app.post('/users/login', passport.authenticate ('local',{
     successRedirect: '/users/dashboard',
     failureRedirect: '/users/login',
     failureFlash: true
 })
 );
+*/
 
 function checkAuthenticated (req, res, next)
 {
@@ -381,75 +414,103 @@ app.listen(PORT,()=> {
 
 //na vytvorenie tokenu ked pouzivatel nechce ist cez stranku 
 app.post('/api/login', async (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    try {
-        const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+  try {
+    const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
 
-        if (userResult.rows.length === 0) {
-            return res.status(401).json({ error: 'User not found' });
-        }
-
-        const user = userResult.rows[0];
-        const validPassword = await bcrypt.compare(password, user.password);
-
-        if (!validPassword) {
-            return res.status(401).json({ error: 'Incorrect password' });
-        }
-
-        const accessToken = jwt.sign(
-            { id: user.id, email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: '15m' } // token platí 15 minút
-        );
-
-        res.json({ accessToken });
-    } catch (err) {
-        console.error('API login error:', err.message);
-        res.status(500).json({ error: 'Internal server error' });
+    if (userResult.rows.length === 0) {
+      return res.status(401).json({ error: 'User not found' });
     }
+
+    const user = userResult.rows[0];
+    const validPassword = await bcrypt.compare(password, user.password);
+
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Incorrect password' });
+    }
+
+    // Skús získať existujúci token
+    const tokenResult = await pool.query(
+      'SELECT token FROM api_tokens WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+      [user.id]
+    );
+
+    if (tokenResult.rows.length > 0) {
+      return res.json({ accessToken: tokenResult.rows[0].token });
+    }
+
+    // Ak token neexistuje → vytvor nový
+    const accessToken = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.JWT_SECRET,
+      //{ expiresIn: '15m' }
+    );
+
+    await pool.query(
+      'INSERT INTO api_tokens (user_id, token) VALUES ($1, $2)',
+      [user.id, accessToken]
+    );
+
+    res.json({ accessToken });
+
+  } catch (err) {
+    console.error('API login error:', err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
-//ziskanie tokenu po prihlaseni 
-app.get('/users/api-token', checkNotAuthenticated, (req, res) => {
-  if (!req.user) {
-    return res.redirect('/users/login');
-  }
 
-  const accessToken = jwt.sign(
-    { id: req.user.id, email: req.user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: '30m' }
+
+
+
+app.get('/users/api-token', checkNotAuthenticated, async (req, res) => {
+  const result = await pool.query(
+    'SELECT token FROM api_tokens WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1',
+    [req.user.id]
   );
 
-  res.render('api-token', { token: accessToken });
+  if (result.rows.length === 0) {
+    return res.status(500).send('Token nebol nájdený.');
+  }
+
+  const token = result.rows[0].token;
+  res.render('api-token', { token });
 });
 
 
-const userRequestCounts = new Map(); // userId => { count, lastResetTime }
 
-function rateLimiter(req, res, next) {
-    const userId = req.user.id; // z tokenu
-    const now = Date.now();
 
-    const userData = userRequestCounts.get(userId) || { count: 0, lastResetTime: now };
 
-    // Ak prešiel viac ako 1 hodina, resetni počítadlo
-    if (now - userData.lastResetTime > 60 * 60 * 1000) {
-        userData.count = 0;
-        userData.lastResetTime = now;
-    }
+//REFRESH TOKEN 
+app.post('/users/api-token/refresh', checkNotAuthenticated, async (req, res) => {
+  const userId = req.user.id;
 
-    userData.count++;
+  try {
+    // Zmaž všetky staré tokeny
+    await pool.query('DELETE FROM api_tokens WHERE user_id = $1', [userId]);
 
-    if (userData.count > 60) { // pocet poziadaviek tza hodinu 
-        return res.status(429).json({ error: 'Too many API requests. Please wait and try again later.' });
-    }
+    // Vytvor nový token
+    const newToken = jwt.sign(
+      { id: req.user.id, email: req.user.email },
+      process.env.JWT_SECRET,
+      //{ expiresIn: '30m' }
+    );
 
-    userRequestCounts.set(userId, userData);
+    // Ulož do DB
+    await pool.query(
+      'INSERT INTO api_tokens (user_id, token) VALUES ($1, $2)',
+      [userId, newToken]
+    );
 
-    next();
-}
+    // novy token ako JSON 
+    res.json({ token: newToken });
+  } catch (err) {
+    console.error('Token refresh error:', err.message);
+    res.status(500).json({ error: 'Chyba pri generovaní nového tokenu' });
+  }
+});
+
 
 //OBLUBENE LOKALITY 
 app.post('/favorites', authenticateToken, async (req, res) => {
