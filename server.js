@@ -190,15 +190,15 @@ app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
   
         await pool.query(
           `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source, datatimestamp, timestamp)
-           VALUES ($1, $2, $3, $4, 'waqi', $5, CURRENT_TIMESTAMP)
+           VALUES ($1, $2, $3, $4, 'WAQI', $5, CURRENT_TIMESTAMP)
            ON CONFLICT (city)
            DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant,
-                         measurements = EXCLUDED.measurements, source = 'waqi',
+                         measurements = EXCLUDED.measurements, source = 'WAQI',
                          datatimestamp = EXCLUDED.datatimestamp, timestamp = CURRENT_TIMESTAMP`,
           [city, aqi, dominantPollutant, JSON.stringify(measurements), datatimestamp]
         );
   
-        return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'waqi' });
+        return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'WAQI' });
   
       } catch (error) {
         console.error('WAQI chyba:', error.message);
@@ -247,15 +247,15 @@ app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
   
       await pool.query(
         `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source, datatimestamp, timestamp)
-         VALUES ($1, $2, $3, $4, 'openaq', $5, CURRENT_TIMESTAMP)
+         VALUES ($1, $2, $3, $4, 'openAQ', $5, CURRENT_TIMESTAMP)
          ON CONFLICT (city)
          DO UPDATE SET aqi = EXCLUDED.aqi, dominant_pollutant = EXCLUDED.dominant_pollutant,
-                       measurements = EXCLUDED.measurements, source = 'openaq',
+                       measurements = EXCLUDED.measurements, source = 'openAQ',
                        datatimestamp = EXCLUDED.datatimestamp, timestamp = CURRENT_TIMESTAMP`,
         [city, aqi, dominantPollutant, JSON.stringify(measurements), datatimestamp]
       );
   
-      return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'openaq' });
+      return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'openAQ' });
     }
   
     res.status(404).json({ error: 'Neboli nájdené žiadne dáta pre túto lokalitu' });

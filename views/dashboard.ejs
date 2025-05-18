@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>AIR CHECK</title>
-  <link rel="icon" type="image/png" href="/images/favicon.ico">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="/style/style.css">
+  <link rel="icon" type="image/png" href="/images/favicon.ico" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="/style/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
+  <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
 </head>
-<body>
 
-  <!-- Navigácia -->
+<body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
       <a class="navbar-brand" href="#">AIR CHECK</a>
@@ -21,28 +24,40 @@
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-        <li class="nav-item">
+          <li class="nav-item">
             <a class="nav-link" href="/users/dashboard">Domov</a>
           </li>
-        <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="apiDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="apiDropdown" role="button" data-bs-toggle="dropdown"
+              aria-expanded="false">
               API
             </a>
             <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="apiDropdown">
-              <li><a class="dropdown-item" href="/users/api-token">Môj API token</a></li>
-              <li><a class="dropdown-item" href="/api-docs">API dokumentácia</a></li>
+              <li>
+                <a class="dropdown-item" href="/users/api-token">Môj API token</a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="/api-docs">API dokumentácia</a>
+              </li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="/users/favorites">Obľúbené lokality</a></li>
-          <li class="nav-item"><a class="nav-link" href="/users/profile">Profil</a></li>
-          <li class="nav-item"><a class="nav-link" href="/users/logout">Odhlásiť</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="/users/favorites">Obľúbené lokality</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/users/profile">Profil</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/users/logout">Odhlásiť</a>
+          </li>
         </ul>
       </div>
     </div>
   </nav>
 
   <div class="container">
-    <h2>Prihlásený ako: <%= user %></h2>
+    <h2>Prihlásený ako: <%= user %>
+    </h2>
     <h1>Zisti kvalitu ovzdušia</h1>
 
     <div class="mb-3">
@@ -50,20 +65,119 @@
       <select id="city" class="form-select"></select>
     </div>
 
-    <button class="btn btn-primary me-2" onclick="getAirQuality()">Zisti kvalitu ovzdušia</button>
-    <button class="btn btn-outline-success" onclick="addFavorite()">Pridať medzi obľúbené</button>
+    <button class="btn btn-primary me-2" onclick="getAirQuality()">
+      Zisti kvalitu ovzdušia
+    </button>
+    <button class="btn btn-outline-success" onclick="addFavorite()">
+      Pridať medzi obľúbené
+    </button>
 
-    <h2 class="mt-4">Výsledok</h2>
-    <p><strong>Vybraná lokácia:</strong> <span id="selected-city">None</span></p>
-    <p><strong>Index kvality ovzdušia (AQI):</strong> <span id="aqi">-</span></p>
-    <p><strong>Dominantná znečisťujúca látka:</strong> <span id="dominant">-</span></p>
+    <div class="card shadow-sm p-4 mt-4">
+      <div class="card-header bg-dark bg-opacity-75 text-white rounded">
+        Výsledky meraní pre: <strong><span id="selected-city">-</span></strong>
+      </div>
 
-    <h3>Namerané hodnoty:</h3>
-    <ul id="measurements" class="list-group"></ul>
-  </div>
+      <div class="card-body row">
+        <div class="col-md-6">
+          <button class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#infoModal">
+            ℹ️ Čo znamenajú tieto údaje?
+          </button>
+          <p><strong>AQI:</strong> <span id="aqi"></span></p>
+          <p><strong>Dominantná znečisťujúca látka:</strong> <span id="dominant">-</span></p>
 
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="/js/main.js?v=2" defer></script>
+          <h5 class="mt-3">Namerané hodnoty:</h5>
+
+          <ul id="measurements" class="list-group list-group-flush"></ul>
+
+          <p class="mt-3 text-muted small">
+            Zdroj údajov: <span id="data-source"></span><br>
+            Čas merania: <span id="data-timestamp"></span>
+          </p>
+        </div>
+
+        <div class="col-md-6">
+          <h5 class="text-center">Vizualizácia</h5>
+          <canvas id="measurementsChart" height="200"></canvas>
+          <div id="graph-warning" class="text-danger mt-3 fw-bold" style="display: none;"></div>
+
+
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal fade" id="infoModal" tabindex="-1" aria-labelledby="infoModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="infoModalLabel">
+              Vysvetlenie meraných hodnôt
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Zavrieť"></button>
+          </div>
+          <div class="modal-body">
+            <p>
+              <strong>AQI – Index kvality ovzdušia:</strong> Zjednodušené číslo
+              (0–500), ktoré reprezentuje celkovú kvalitu vzduchu. Hodnoty nad
+              100 sú potenciálne škodlivé pre citlivé skupiny, nad 150 už aj pre
+              zdravých ľudí.
+            </p>
+
+            <ul>
+              <li><strong>PM10</strong> – prachové častice s priemerom do 10 mikrometrov. Zachytávajú sa v nose a
+                horných dýchacích cestách. <br><em>Limit: 50 µg/m³</em></li>
+
+              <li><strong>PM2.5</strong> – jemné častice s priemerom do 2.5 mikrometra. Prenikajú hlboko do pľúc a
+                krvného obehu. <br><em>Limit: 25 µg/m³ </em></li>
+
+              <li><strong>NO₂ (oxid dusičitý)</strong> – vzniká najmä z dopravy. Môže spôsobovať podráždenie dýchacích
+                ciest. <br><em>Limit: 200 µg/m³ </em></li>
+
+              <li><strong>SO₂ (oxid siričitý)</strong> – vzniká spaľovaním uhlia a ropy. Môže zhoršovať astmu a zápaly
+                priedušiek. <br><em>Limit: 125 µg/m³ </em></li>
+
+              <li><strong>CO (oxid uhoľnatý)</strong> – bezfarebný plyn z výfukov a kúrenia. Vysoké hodnoty sú životu
+                nebezpečné. <br><em>Limit: cca 10 mg/m³ </em></li>
+
+              <li><strong>O₃ (ozón)</strong> – tvorí sa znečistením v slnečnom počasí. Vysoké koncentrácie dráždia
+                dýchacie cesty. <br><em>Limit: 180 µg/m³ </em></li>
+
+              <li><strong>T (teplota)</strong> – vonkajšia teplota vzduchu v °C</li>
+
+              <li><strong>H (vlhkosť)</strong> – relatívna vlhkosť vzduchu v %</li>
+
+              <li><strong>P (tlak)</strong> – atmosférický tlak v hPa</li>
+
+              <li><strong>W (vietor)</strong> – rýchlosť vetra v m/s</li>
+
+              <li><strong>WG (wind gust)</strong> – nárazy vetra </li>
+
+              <li><strong>DEW (rosný bod)</strong> – teplota, pri ktorej dochádza ku kondenzácii vodnej pary. Nižšia než
+                aktuálna teplota = suchý vzduch.</li>
+
+              <li><strong>R (dážď)</strong> – zrážky v mm </li>
+            </ul>
+
+
+            <p class="mt-3 text-muted">
+              Nie každá lokalita má senzory na všetky látky. Zobrazujú sa len
+              tie, ktoré sú dostupné pre konkrétnu lokalitu.
+            </p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+              Zavrieť
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script src="/js/main.js?v=2" defer></script>
+
 </body>
 </html>
