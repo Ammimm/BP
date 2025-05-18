@@ -40,14 +40,40 @@
   <div class="container">
     <h1 class="mb-4">Moje obľúbené lokality</h1>
 
-    <ul id="favorites-list" class="list-group mb-4">
-      <!-- dynamicky nacitane polozky -->
-    </ul>
+  <div class="alert alert-info mt-4" role="alert">
+  <p class="mb-1">
+    <strong>Upozornenia</strong> sa automaticky odosielajú, keď sa v danej lokalite <strong>zhorší kvalita ovzdušia</strong> (ak AQI presiahne hodnotu 100).
+  </p>
+  <p class="mb-1">
+    Tlačidlo <strong>„Poslať“</strong> slúži na okamžité zaslanie <em>aktuálnych meraní</em> z danej lokality – <strong>aj bez prekročenia limitov</strong>.
+  </p>
+  <p class="mb-0">
+    Všetky e-maily sú odosielané na vašu <strong>prihlasovaciu e-mailovú adresu</strong>.
+  </p>
+</div>
+    <div class="table-responsive mb-4">
+  <table class="table table-bordered table-striped align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th class="text-center">Lokalita</th>
+        <th class="text-center" style="width: 200px;">Upozornenie</th>
+        <th class="text-center" style="width: 200px;">E-mail</th>
+        <th class="text-center" style="width: 200px;">Vymazať</th>
+      </tr>
+    </thead>
+    <tbody id="favorites-table-body">
+      <!-- dynamicky doplnene lokacie  -->
+    </tbody>
+  </table>
+</div>
+
 
     <a href="/users/dashboard" class="btn btn-secondary">← Späť na dashboard</a>
   </div>
 
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="/js/favorites.js" defer></script>
 </body>
 </html>

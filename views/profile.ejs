@@ -73,12 +73,38 @@
       <button type="submit" class="btn btn-primary">Uložiť zmeny</button>
     </form>
 
-    <form method="POST" action="/users/delete" onsubmit="return confirm('Naozaj chceš zmazať svoj účet?');">
-      <button type="submit" class="btn btn-danger">❌ Zmazať účet</button>
-    </form>
+    <form id="delete-account-form" method="POST" action="/users/delete">
+  <button type="submit" class="btn btn-danger">❌ Zmazať účet</button>
+</form>
+
 
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script>
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('delete-account-form');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const result = await Swal.fire({
+      title: 'Si si istý?',
+      text: 'Naozaj chceš zmazať svoj účet? Táto akcia je nevratná.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Áno, zmazať',
+      cancelButtonText: 'Zrušiť'
+    });
+
+    if (result.isConfirmed) {
+      form.submit(); 
+    }
+  });
+});
+</script>
+
+
 </body>
 </html>

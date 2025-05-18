@@ -32,8 +32,11 @@ document.addEventListener("DOMContentLoaded", async () => {
 });
 
 async function getAirQuality() {
-    const cityId = document.getElementById("city").value;
-    document.getElementById("selected-city").innerText = cityId;
+     const citySelect = document.getElementById("city");
+    const cityId = citySelect.value;
+    const cityName = citySelect.options[citySelect.selectedIndex].text;
+
+    document.getElementById("selected-city").innerText = cityName;
 
     try {
         const token = localStorage.getItem('apiAccessToken');
@@ -119,10 +122,21 @@ async function addFavorite() {
         const data = await response.json();
 
         if (response.ok) {
-            alert('Lokalita bola pridaná medzi obľúbené.');
-        } else {
-            alert('Chyba: ' + data.error);
-        }
+    Swal.fire({
+        icon: 'success',
+        title: 'Hotovo',
+        text: 'Lokalita bola pridaná medzi obľúbené.',
+        timer: 1500,
+        showConfirmButton: false
+    });
+} else {
+    Swal.fire({
+        icon: 'error',
+        title: 'Chyba',
+        text: data.error || 'Nepodarilo sa pridať lokalitu.'
+    });
+}
+
 
     } catch (error) {
         console.error('Chyba pri pridávaní obľúbenej lokality:', error);

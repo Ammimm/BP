@@ -11,6 +11,9 @@ const fs = require('fs'); // na nacitanie CSV
 const csv = require('csv-parser'); 
 
 const rateLimiter = require('./middleware/rateLimiter'); //limitovanie požiadaviek
+//upozornenia
+const startAirQualityCron = require('./alertWorker');
+startAirQualityCron(); // <- spustenie pri štarte servera
 
 
 app.use(express.json()); // na spravne posielanie post 
@@ -511,25 +514,48 @@ app.post('/users/api-token/refresh', checkNotAuthenticated, async (req, res) => 
   }
 });
 
-
-//OBLUBENE LOKALITY 
+//OBLUBENE LOKALITY
 app.post('/favorites', authenticateToken, async (req, res) => {
   const userId = req.user.id;
   const { locationId } = req.body;
 
   if (!locationId) {
-      return res.status(400).json({ error: 'locationId is required' });
+    return res.status(400).json({ error: 'locationId is required' });
   }
 
   try {
-      await pool.query(
-          'INSERT INTO favorites (user_id, location_id) VALUES ($1, $2)',
-          [userId, locationId]
-      );
-      res.json({ message: 'Lokalita pridaná medzi obľúbené.' });
+    // Zisti, koľko lokalít má používateľ už pridaných
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM favorites WHERE user_id = $1',
+      [userId]
+    );
+
+    const favoritesCount = parseInt(countResult.rows[0].count, 10);
+    if (favoritesCount >= 5) {
+      return res.status(400).json({ error: 'Maximálny počet obľúbených lokalít je 5.' });
+    }
+
+    // Over, či už túto lokalitu má
+    const existsResult = await pool.query(
+      'SELECT 1 FROM favorites WHERE user_id = $1 AND location_id = $2',
+      [userId, locationId]
+    );
+
+    if (existsResult.rows.length > 0) {
+      return res.status(400).json({ error: 'Táto lokalita je už medzi obľúbenými.' });
+    }
+
+    // Vlož novú obľúbenú lokalitu
+    await pool.query(
+      'INSERT INTO favorites (user_id, location_id) VALUES ($1, $2)',
+      [userId, locationId]
+    );
+
+    res.json({ message: 'Lokalita pridaná medzi obľúbené.' });
+
   } catch (err) {
-      console.error('Chyba pri ukladaní obľúbenej lokality:', err.message);
-      res.status(500).json({ error: 'Server error' });
+    console.error('Chyba pri ukladaní obľúbenej lokality:', err.message);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -649,7 +675,7 @@ app.patch('/favorites/:id/alert', authenticateToken, async (req, res) => {
 });
 
 
-//NA TEST MAILU 
+//odoslanie emailu ihneď
 app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
   const userId = req.user.id;
   const { locationId } = req.body;
@@ -672,7 +698,7 @@ app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
     // dáta z airquality
     const response = await axios.get(`${process.env.SERVER_URL}/airquality?id=${locationId}`, {
       headers: {
-        Authorization: `Bearer ${process.env.ALERT_INTERNAL_TOKEN}`
+        Authorization: `Bearer ${process.env.ALERT_INTERNAL_TOKEN}` //pouzity specialy token 
       }
     });
 
@@ -688,9 +714,17 @@ app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
           <li>AQI: ${data.aqi}</li>
           <li>Dominantný prvok: ${data.dominantPollutant || 'neznámy'}</li>
         </ul>
+         <p><strong>Detailné merania:</strong></p>
+        <ul>
+         ${
+            Object.entries(data.measurements || {})
+             .map(([key, value]) => `<li>${key}: ${value}</li>`)
+             .join('')
+         }
+         </ul>
         <p><a href="${process.env.SERVER_URL}/users/dashboard">Zobraziť v aplikácii</a></p>
       `
-    });
+    }); 
 
     res.json({ message: 'E-mail odoslaný.' });
 

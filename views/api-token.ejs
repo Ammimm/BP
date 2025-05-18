@@ -46,7 +46,18 @@
     <button id="copy-token" class="btn btn-outline-primary me-2">Kopírovať token</button>
 <button id="refresh-token" class="btn btn-warning">Vygenerovať nový token</button>
 
-    <p class="mt-3">Tento token bol automaticky uložený do tvojho prehliadača.</p>
+<p class="mt-3">
+  Tento token bol automaticky uložený do tvojho prehliadača.
+  <span 
+    class="ms-2 text-info" 
+    data-bs-toggle="tooltip" 
+    title="Všetky požiadavky na stránke sa vykonávajú s vaším tokenom"
+    style="cursor: pointer;"
+  >
+    ℹ️
+  </span>
+
+<p class="mt-3">Token môžete použiť na volania mimo aplikácie</p>
 
     <button id="back-to-dashboard" class="btn btn-secondary mt-3">← Späť na dashboard</button>
   </div>
@@ -103,6 +114,9 @@ document.addEventListener('DOMContentLoaded', () => {
         alert('Chyba pri komunikácii so serverom.');
       }
     });
+    //na tooltip
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
   });
   </script>
 </body>

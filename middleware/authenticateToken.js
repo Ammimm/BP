@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { pool } = require('../dbConfig'); // db pripojenie
+const { pool } = require('../dbConfig'); 
 
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -9,10 +9,16 @@ async function authenticateToken(req, res, next) {
     return res.status(401).json({ error: 'Access token missing' });
   }
 
+
+  //pre token na emaily
+  if (token === process.env.ALERT_INTERNAL_TOKEN) {
+    req.user = { id: 'internal', email: 'internal@aircheck.local' };
+    return next();
+  }
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Skontroluj, či token je v databáze
     const result = await pool.query(
       'SELECT * FROM api_tokens WHERE user_id = $1 AND token = $2',
       [decoded.id, token]
