@@ -116,7 +116,7 @@ app.get('/locations',authenticateToken, (req, res) => {
 
 // funkcia na vypocet AQI --dat neskor zvlast
 function calculateAQI(concentration, breakpoints) {
-    for (let i = 0; i < breakpoints.length - 1; i++) {
+    for (let i = 0; i < breakpoints.length; i++) {
         const [cLow, cHigh, iLow, iHigh] = breakpoints[i];
 
         if (concentration >= cLow && concentration <= cHigh) {
@@ -184,9 +184,12 @@ app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
         const dominantPollutant = data.dominentpol ?? null;
         const datatimestamp = data.time?.iso ?? null;
   
+        
         const measurements = Object.fromEntries(
           Object.entries(data.iaqi || {}).map(([k, v]) => [k, v.v])
         );
+       
+
   
         await pool.query(
           `INSERT INTO air_quality (city, aqi, dominant_pollutant, measurements, source, datatimestamp, timestamp)
@@ -197,12 +200,11 @@ app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
                          datatimestamp = EXCLUDED.datatimestamp, timestamp = CURRENT_TIMESTAMP`,
           [city, aqi, dominantPollutant, JSON.stringify(measurements), datatimestamp]
         );
-  
+
         return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'WAQI' });
   
       } catch (error) {
         console.error('WAQI chyba:', error.message);
-        return res.status(500).json({ error: 'WAQI chyba' });
       }
     }
   
@@ -232,8 +234,17 @@ app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
       }
   
       if (Object.keys(measurements).length === 0) {
-        return res.status(404).json({ error: 'Žiadne dáta zo senzorov' });
+        console.warn(` Žiadne dáta zo senzorov pre lokalitu ${city}`);
       }
+
+  try {
+    const Timestamps = []; 
+    const now = new Date();
+    now.setMinutes(0, 0, 0); 
+    datatimestamp = Timestamps[0] || now.toISOString();
+  } catch (e) {
+    datatimestamp = new Date().toISOString(); 
+  }
   
       const pm25 = measurements.pm25 ?? null;
       const pm10 = measurements.pm10 ?? null;
@@ -257,8 +268,11 @@ app.get('/airquality', authenticateToken,rateLimiter, async (req, res) => {
   
       return res.json({ city, aqi, dominantPollutant, measurements, datatimestamp, source: 'openAQ' });
     }
-  
-    res.status(404).json({ error: 'Neboli nájdené žiadne dáta pre túto lokalitu' });
+
+if (dbResult?.rows?.length > 0) {
+  return res.json(dbResult.rows[0]);
+}
+    res.status(404).json({ error: 'Z dostupných zdrojov neboli nájdené žiadne dáta pre túto lokalitu' });
   });
   
 
@@ -676,7 +690,8 @@ app.patch('/favorites/:id/alert', authenticateToken, async (req, res) => {
 
 
 //odoslanie emailu ihneď
-app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
+app.post('/favorites/alert-now', authenticateToken, async (req, res) => {
+//app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
   const userId = req.user.id;
   const { locationId } = req.body;
 
@@ -733,4 +748,12 @@ app.post('/favorites/test-alert', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Nepodarilo sa odoslať e-mail.' });
   }
 });
+
+//SWAGGER
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+
+const swaggerDocument = YAML.load('./openapi.yaml');
+
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 

@@ -192,7 +192,7 @@ async function sendEmail(locationId) {
     const token = localStorage.getItem('apiAccessToken');
   
     try {
-      const res = await fetch('/favorites/test-alert', {
+      const res = await fetch('/favorites/alert-now', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

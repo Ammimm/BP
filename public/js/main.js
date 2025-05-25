@@ -94,10 +94,14 @@ async function getAirQuality() {
         : data.measurements;
 
     for (const [key, value] of Object.entries(measurements)) {
-      const listItem = document.createElement("li");
-      listItem.innerText = `${key.toUpperCase()}: ${value}`;
-      measurementsList.appendChild(listItem);
-    }
+  const listItem = document.createElement("li");
+  listItem.className = "list-group-item align-items-center";
+  listItem.innerHTML = `
+    <span class="text-uppercase">${key}</span>
+    <span class="badge bg-primary rounded-pill">${value}</span>
+  `;
+  measurementsList.appendChild(listItem);
+}
 
     // GRAF
     const canvas = document.getElementById("measurementsChart");
@@ -147,11 +151,35 @@ async function getAirQuality() {
       return pollutantLimits[key] || null;
     });
 
-    let warningMessage = "";
+    let aqiInfo = "";
+    const aqi = data.aqi;
 
-    if (data.aqi > 100) {
-      warningMessage += `⚠️ Celkové AQI (${data.aqi}) je zvýšené. `;
-    }
+
+if (typeof aqi !== "number" || isNaN(aqi)) {
+  aqiInfo = "ℹ️ Z dostupných hodnôt pre túto lokalitu sa nedá vypočítať index kvality ovzdušia (AQI).";
+} else if (aqi <= 50) {
+  aqiInfo = "✅ Kvalita ovzdušia je dobrá. Žiadne zdravotné riziko.";
+} else if (aqi <= 100) {
+  aqiInfo = "⚠️ Mierne zvýšené hodnoty. Citlivé osoby by mali obmedziť dlhodobý pobyt vonku.";
+} else if (aqi <= 150) {
+  aqiInfo = "⚠️ Nezdravé pre citlivé skupiny. Osoby s ochoreniami dýchacích ciest by mali obmedziť pobyt vonku.";
+} else if (aqi <= 200) {
+  aqiInfo = "⚠️ Nezdravé. Všetci by mali obmedziť dlhodobý pobyt vonku.";
+} else if (aqi <= 300) {
+  aqiInfo = "⚠️ Veľmi nezdravé. Odporúča sa nevychádzať von, najmä citlivé skupiny.";
+} else {
+  aqiInfo = "⚠️ Nebezpečné! Vyhnite sa všetkým vonkajším aktivitám.";
+}
+
+// Zobrazenie AQI upozornenia
+const aqiWarningDiv = document.getElementById("aqi-warning");
+if (aqiWarningDiv) {
+  aqiWarningDiv.textContent = aqiInfo;
+  aqiWarningDiv.style.display = "block";
+}
+
+
+    let warningMessage = "";
 
     labels.forEach((label, i) => {
       const key = label.toLowerCase();
@@ -212,7 +240,7 @@ async function getAirQuality() {
             beginAtZero: true,
             title: {
               display: true,
-              text: "µg/m³ alebo ppm",
+              text: "µg/m³",
             },
           },
         },

@@ -1,0 +1,195 @@
+openapi: 3.0.0
+info:
+  title: AIR CHECK API
+  version: 1.0.0
+  description: |
+   API pre získavanie údajov o kvalite ovzdušia na Slovensku. 
+
+    - Pre získanie tokenu sa registruj a prihlás
+    - Volania vyžadujú Bearer token
+
+    Viac info nájdeš na [AirCheck](http://localhost:4000/)
+
+servers:
+  - url: http://localhost:4000
+    description: Lokálny vývojový server
+
+paths:
+  /api/login:
+    post:
+      summary: Prihlásenie a získanie JWT tokenu
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - password
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Úspešné prihlásenie
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  accessToken:
+                    type: string
+        '401':
+          description: Neplatné prihlasovacie údaje
+
+  /locations:
+    get:
+      summary: Získanie zoznamu dostupných lokalít
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Zoznam lokalít
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    name:
+                      type: string
+
+  /airquality:
+    get:
+      summary: Získanie kvality ovzdušia pre lokalitu
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: query_name
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Úspešná odpoveď s údajmi o kvalite ovzdušia
+        '400':
+          description: Chýbajúci parameter
+        '404':
+          description: Lokalita nenájdená alebo žiadne dáta
+
+  /favorites:
+    get:
+      summary: Získanie obľúbených lokalít používateľa
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Zoznam obľúbených lokalít
+
+    post:
+      summary: Pridanie obľúbenej lokality
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - locationId
+              properties:
+                locationId:
+                  type: string
+      responses:
+        '200':
+          description: Lokalita pridaná
+        '400':
+          description: Chyba validácie alebo maximum obľúbených lokalít
+
+  /favorites/{id}:
+    delete:
+      summary: Odstránenie obľúbenej lokality
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lokalita odstránená
+
+  /favorites/{id}/alert:
+    patch:
+      summary: Zapnutie alebo vypnutie upozornenia pre lokalitu
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled:
+                  type: boolean
+      responses:
+        '200':
+          description: Stav upozornenia aktualizovaný
+
+  /favorites/alert-now:
+    post:
+      summary: Okamžité odoslanie aktuálnych údajov e-mailom pre obľúbenú lokalitu
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - locationId
+              properties:
+                locationId:
+                  type: string
+      responses:
+        '200':
+          description: E-mail odoslaný
+
+  /users/api-token/refresh:
+    post:
+      summary: Vygenerovanie nového API tokenu
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Nový token vrátený v odpovedi
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
