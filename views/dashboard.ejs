@@ -11,6 +11,8 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.4.0"></script>
   <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+
 
 </head>
 
@@ -27,28 +29,32 @@
           <li class="nav-item">
             <a class="nav-link" href="/users/dashboard">Domov</a>
           </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/users/favorites">Obľúbené</a>
+          </li>
+
           <li class="nav-item dropdown">
             <a class="nav-link dropdown-toggle" href="#" id="apiDropdown" role="button" data-bs-toggle="dropdown"
               aria-expanded="false">
               API
             </a>
-            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="apiDropdown">
-              <li>
-                <a class="dropdown-item" href="/users/api-token">Môj API token</a>
-              </li>
-              <li>
-                <a class="dropdown-item" href="/api-docs">API dokumentácia</a>
-              </li>
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="apiDropdown">
+              <li><a class="dropdown-item" href="/users/api-token">Môj API token</a></li>
+              <li><a class="dropdown-item" href="/api-docs">API dokumentácia</a></li>
             </ul>
           </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/users/favorites">Obľúbené lokality</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/users/profile">Profil</a>
-          </li>
-          <li class="nav-item">
-            <a class="nav-link" href="/users/logout">Odhlásiť</a>
+
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle me-2"></i> <span></span>
+            </a>
+
+            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="/users/profile">Profil</a></li>
+              <li><a class="dropdown-item" href="/users/logout">Odhlásiť</a></li>
+            </ul>
           </li>
         </ul>
       </div>
@@ -77,12 +83,12 @@
 
       <div class="card-body row">
         <div class="col-md-6">
-          
+
           <div>
-          <p><strong>AQI:</strong> <span id="aqi"></span></p>
-          <div id="aqi-warning" style="display: none; margin-top: 1em; font-weight: bold;"></div>
+            <p><strong>AQI:</strong> <span id="aqi"></span></p>
+            <div id="aqi-warning" style="display: none; margin-top: 1em; font-weight: bold;"></div>
           </div>
-          <br><br>
+          <br>
 
           <p><strong>Dominantná znečisťujúca látka:</strong> <span id="dominant">-</span></p>
 
@@ -184,4 +190,5 @@
     <script src="/js/main.js?v=2" defer></script>
 
 </body>
+
 </html>

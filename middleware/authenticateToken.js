@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { pool } = require('../dbConfig'); 
+const { pool } = require('../config/dbConfig'); 
 
 async function authenticateToken(req, res, next) {
   const authHeader = req.headers['authorization'];
@@ -10,7 +10,6 @@ async function authenticateToken(req, res, next) {
   }
 
 
-  //pre token na emaily
   if (token === process.env.ALERT_INTERNAL_TOKEN) {
     req.user = { id: 'internal', email: 'internal@aircheck.local' };
     return next();

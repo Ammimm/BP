@@ -2,7 +2,7 @@ require('dotenv').config();
 const cron = require('node-cron');
 const axios = require('axios');
 const nodemailer = require('nodemailer');
-const { pool } = require('./dbConfig'); 
+const { pool } = require('../config/dbConfig'); 
 
 module.exports = function startAirQualityCron() {
   const transporter = nodemailer.createTransport({
@@ -56,7 +56,7 @@ module.exports = function startAirQualityCron() {
         } catch (err) {
           console.warn(`Chyba pri AQI pre ${locationId}:`, err.message);
         }
-        await delay(1000);// pockaj
+        await delay(1000);
       }
     } catch (err) {
       console.error('Chyba pri dotaze do DB:', err.message);

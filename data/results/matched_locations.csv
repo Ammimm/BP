@@ -1,9 +1,7 @@
 id;query_name;location_id;location_name;location_from_coords;locality;sensor_ids;uid;uid_prefixed;waqi_name;match_score
-1;Vranov nad Topľou – M. R. Štefánika;5193;M. R. Štefánika, Vranov nad Topľou;Prešovský kraj;Prešovský kraj;13492,13494,13395;3131;@3131;M.R.Stefanika, Vranov nad Top., Slovakia;0.77
-2;Stakčín, Snina;5196;558, Stakčín;Prešovský kraj;Prešovský kraj;13410,13408;;;;
-3;Ladomirová, Svidník;5209;Ladomirov;Prešovský kraj;Prešovský kraj;13461,13462;;;;
+2;Snina - Stakčín;5196;558, Stakčín;Prešovský kraj;Prešovský kraj;13410,13408;;;;
+3;Svidník - Ladomirová;5209;Ladomirov;Prešovský kraj;Prešovský kraj;13461,13462;;;;
 4;Strážske – Družstevná;5214;Družstevná, Strážske;Košický kraj;Košický kraj;13485,13490;;;;
-5;Humenné;5216;Humenné;Prešovský kraj;Prešovský kraj;13496,13498,13499,13501;;;;
 6;Trebišov – T. G. Masaryka;2163378;"Trebisov  - T. G. Masaryka";T. G. Masaryka, Trebišov;Trebisov;7775216,7774941,7774220,7775977;13830;@13830;T. G. Masaryka, Trebisov, Slovakia;0.94
 7;Strážske – Mierová;2163379;"Strazske - Mierova";Družstevná, Strážske;Strazske;7773986,7773669;-475054;A475054;Strazske, Mierova;1.00
 8;Humenné – Námestie slobody;2163380;"Humenne - Nam. slobody";Námestie slobody, Humenné;Humenne;7775053,7775811,7774441,7773698;3126;@3126;Nam. slobody, Humenne, Slovakia;0.94
@@ -11,9 +9,8 @@ id;query_name;location_id;location_name;location_from_coords;locality;sensor_ids
 10;Starina – Vodná nádrž;2163393;"Starina - Vodna nadr. EMEP/O3";558, Stakčín;Starina;7773605,7774421;3130;@3130;EMEP, Vodna nadrz, Starina, Slovakia;0.81
 11;Kolonické sedlo;2163394;"Kolonicke sedlo";Ladomirov;Kolonicke sedlo;7774937,7775939;3142;@3142;Kolonicke sedlo, Slovakia;1.00
 12;Oščadnica;2163352;"Oscadnica";2013, Oščadnica;Oscadnica;7773580,7774516,7774029,7775917,7775186;14161;@14161;Oscadnica, Slovakia;1.00
-13;Pankúchova, Bratislava;5186;SK0001A;Pankúchova, Bratislava;Bratislavský kraj;13431,13430,13429,13426,13387;13823;@13823;Puchovska, Bratislava, Slovakia;0.70
+13;Bratislava - Pankúchova;5186;SK0001A;Pankúchova, Bratislava;Bratislavský kraj;13431,13430,13429,13426,13387;13823;@13823;Puchovska, Bratislava, Slovakia;0.70
 14;Bratislava – Kamenné námestie;5198;"Bratislava - Kamenne nam.";Bratislava;Bratislava - mestska cast Stare Mesto;13417,13416;3107;@3107;Kamenne nam., Bratislava, Slovakia;0.95
-15;Bratislava – Trnavská cesta;5199;SK0002A;Trnavská cesta, Bratislava;Bratislavský kraj;13422,13421,13418,22698;3108;@3108;Trnavske Myto, Bratislava, Slovakia;0.70
 16;Bratislava – Tupého;5215;SK0048A;Tupého, Bratislava;Bratislavský kraj;13489,13488,13487,13486,29078;13823;@13823;Puchovska, Bratislava, Slovakia;0.61
 17;Bratislava – Mamateyova;2163357;"Bratislava - Mamateyova";Bratislava;Bratislava - mestska cast Petrzalka;7775138,7773845,7774038,7774313,7774718;3110;@3110;Mamateyova, Bratislava, Slovakia;0.95
 18;Rovinka – Lesná;2163358;"Rovinka";Lesná, Rovinka;Rovinka;7773546,7775531,7773212,7775347;-509926;A509926;Rovinka;1.00
@@ -22,50 +19,45 @@ id;query_name;location_id;location_name;location_from_coords;locality;sensor_ids
 21;Bratislava – Jeséniova;2163362;"Bratislava - Jeseniova";Jeséniova, Bratislava;Bratislava - mestska cast Nove Mesto;7775359,7775852,7773124,7773953,7775144;3109;@3109;Jeseniova, Bratislava, Slovakia;0.94
 22;Pezinok – Fándlyho;2163364;"Pezinok - Obrancov mieru";Fándlyho, Pezinok;Pezinok;7772905,7775890,7775253,7775630;14158;@14158;Pezinok, Slovakia;0.60
 23;Trenčín – Hasičská;5192;SK0047A;Hasičská, Trenčín;Trenciansky kraj;13497,13495,13493,13491,13394;3135;@3135;Hasicska, Trencin, Slovakia;0.50
-24;Trenčín – Hasičská;2163370;"Trencin - Hasicska";Hasičská, Trenčín;Trencin;7775494,7774520,7774934,7773657,7774399;3135;@3135;Hasicska, Trencin, Slovakia;0.93
 25;Handlová – Morovnianska cesta;5188;"Handlova - Morovianska cesta";M. R. Štefánika, Handlová;Handlova;5078547,5078364,5078822;3133;@3133;Morovianska cesta, Handlova, Slovakia;0.96
 26;Prievidza – Malonecpalská;5190;"Prievidza - Malonecpalska";Malonecpalská, Prievidza;Prievidza;13483,13482,13480,13477,13392;3134;@3134;Malonecpalska, Prievidza, Slovakia;0.95
-27;Vieska;5191;SK0013A;Vieska;Trenciansky kraj;13419,13432,13393;;;;
+27;Bystričany - Vieska;5191;SK0013A;Vieska;Trenciansky kraj;13419,13432,13393;;;;
 28;Žiar nad Hronom – Jilemnického;5207;"Ziar nad Hronom - Jilemnickeho";Žiar nad Hronom;Ziar nad Hronom;13446,13448;3119;@3119;Jilemnickeho, Ziar nad Hronom, Slovakia;0.96
 29;Žarnovica – Májová;2163368;"Zarnovica";Májová, Žarnovica;Zarnovica2;7775353,7773632,7775707;-470296;A470296;Zarnovica;1.00
 30;Bystričany – Osloboditeľov;2163371;"Bystricany - Rozvodna SSE";Osloboditeľov, Bystričany;Bystricany;7775911,7775975,10161328;3132;@3132;Rozvodna SSE, Bystricany, Slovakia;0.95
 31;Banská Bystrica – Zelená;5183;"Banska Bystrica - Zelena";Zelená, Banská Bystrica;Banska Bystrica;13384,13397,29080,13399;3115;@3115;Zelena, Banska Bystrica, Slovakia;0.95
 32;Banská Bystrica – Štefánikovo nábrežie;5208;SK0214A;Štefánikovo nábrežie, Banská Bystrica;Banskobystrický kraj;13458,13457,13452,13451,13447;3114;@3114;Stefanikovo nabrezie, Banska Bystrica, Slovakia;0.72
-33;Banská Bystrica – Štefánikovo nábrežie;2163373;"Banska Bystrica - Stefanikovo nabrezie";Štefánikovo nábrežie, Banská Bystrica;Banska Bystrica;7775883,7773581,7774939,7774135,7772751;3114;@3114;Stefanikovo nabrezie, Banska Bystrica, Slovakia;0.97
 34;Ružomberok – Riadok;5184;SK0008A;Riadok, Ružomberok;Žilinský kraj;13401,13400,13398,13511,13510,13385;3141;@3141;Riadok, Ruzomberok, Slovakia;0.87
-35;Ružomberok – Riadok;2163351;"Ruzomberok - Riadok";Riadok, Ružomberok;Ruzomberok;7773557,7772715,7773700,7773422,7775040,7774793;3141;@3141;Riadok, Ruzomberok, Slovakia;1.00
 36;Ružomberok – Pivovarská;3403806;Ružomberok, Pivovarská;Pivovarská, Ružomberok;;12213614,12213615,12213616,12213617,12213618;;;;
 37;Košice – Jenisejská;5195;SK0264A;Jenisejská, Košice;Košický kraj;13402,13404;;;;
 38;Prešov – Armádneho generála Svobodu;5202;SK0266A;Armádneho generála Svobodu, Prešov;Prešovský kraj;13427,13428,13433,13434;3129;@3129;Arm.gen. L. Svobodu, Presov, Slovakia;0.58
 39;Košice – Kostolianska cesta;5203;SK0016A;Kostolianska cesta, Košice;Košický kraj;13435;;;;
 40;Košice – Štefánikova;5205;"Kosice - Stefanikova";Štefánikova, Košice;Kosice;13437,13438,13442,13445,29085;3113;@3113;Stefanikova, Kosice, Slovakia;0.94
 41;Košice – Spišské námestie;2163377;"Kosice - Amurska";Spišské námestie, Košice;Kosice - mestska cast Nad jazerom;7774790,7774331;3111;@3111;Amurska, Kosice, Slovakia;0.92
-42;Prešov – Armádneho generála Svobodu;2163382;"Presov - arm.gen. L. Svobodu";Armádneho generála Svobodu, Prešov;Presov;7773579,7775875,7772776,7773361;3129;@3129;Arm.gen. L. Svobodu, Presov, Slovakia;0.95
 43;Košice – Ďumbierska;2163383;"Kosice-Dumbierska";Ďumbierska, Košice;Kosice - mestska cast Sever;7773134;3112;@3112;Dumbierska, Kosice, Slovakia;0.93
 44;Letanovce – Malá krížová chodba;5185;SK0265A;Malá krížová chodba, Letanovce;Košický kraj;13409,13413,13420,13425,13386;;;;
 45;Poprad – Na letisko;5213;SK0041A;Na letisko, Poprad;Prešovský kraj;13474,13476,2005375;;;;
 46;Poprad – Železničná;2163386;"Poprad - Zeleznicna";Poprad;Poprad;7774447,7772743,7774759;13827;@13827;Zeleznicna, Poprad, Slovakia;0.93
 47;Gánovce – Hlavná;2163389;"Ganovce";Hlavná, Gánovce;Poprad;7774475,7774405;3128;@3128;Meteo. st, Ganovce, Slovakia;0.63
 48;Horná Lehota – Derešská;9181;SK0002R;Derešská, Horná Lehota;Žilinský kraj;29064,27553;;;;
-49;Liptovský Mikuláš – Čs. brigády;2163350;"Liptovsky Mikulas - Skolska";Čs. brigády, Liptovský Mikuláš;Liptovsky Mikulas;7773103,7773792,7773776,7776021;14162;@14162;Skolska, Liptovsky Mikulas, Slovakia;0.95
+49;Liptovský Mikuláš – Školská;2163350;"Liptovsky Mikulas - Skolska";Čs. brigády, Liptovský Mikuláš;Liptovsky Mikulas;7773103,7773792,7773776,7776021;14162;@14162;Skolska, Liptovsky Mikulas, Slovakia;0.95
 50;Demänovská Dolina – Chopok;2163391;"Chopok - EMEP/O3";Demänovská Dolina;Horna Lehota;7773052,7773521;3139;@3139;EMEP, Chopok, Slovakia;0.76
 51;Plášťovce;2163367;"Plastovce";Plášťovce;Plastovce;7775335,7773500,7773692,7774606;13826;@13826;Plasťovce, Slovakia;0.75
 52;Senica – Hviezdoslavova;5182;SK0021A;Hviezdoslavova, Senica;Trnavský kraj;13383,13460,13389;3137;@3137;Hviezdoslavova, Senica, Slovakia;1.00
 53;Malacky – Kláštorné námestie;5194;SK0407A;Kláštorné námestie, Malacky;;13463,13464,13465,13466,13396;;;;;;
-54;Senica – Hviezdoslavova;2163356;"Senica - Hviezdoslavova";Hviezdoslavova, Senica;Senica;7773672,7774737,7773823;3137;@3137;Hviezdoslavova, Senica, Slovakia;1.00
 55;Rohožník – Senická cesta;2163363;"Rohoznik - Senicka cesta";501, Rohožník;Rohoznik;7773975,7773168,7774217,7775894,7772910;14159;@14159;Senicka, Rohoznik, Slovakia;0.79
 56;Senec – Boldocká;;;;;;13832;@13832;Boldocka, Senec, Slovakia;
 57;Komárno – Vnútorná okružná;;;;;;13824;@13824;Vnutorna okruzna, Komarno, Slovakia;
 58;Strážske – Mierová;;;;;;3123;@3123;Mierova, Strazske, Slovakia;
-59;Stará Lesná – EMEP AU SAV;;;;;;3127;@3127;EMEP, AU SAV, Stara Lesna, Slovakia;
-60;Topoľníky – EMEP ASZOD;;;;;;3136;@3136;EMEP, Aszod, Topolniky, Slovakia;
-61;Sereď – Vinohradnícka;;;;;;13831;@13831;Vinarska, Sereď, Slovakia;
+59;Stará Lesná – Lesnianská;;;;;;3127;@3127;EMEP, AU SAV, Stara Lesna, Slovakia;
+60;Topoľníky – Hlavná;;;;;;3136;@3136;EMEP, Aszod, Topolniky, Slovakia;
+61;Sereď – Vinárska;;;;;;13831;@13831;Vinarska, Sereď, Slovakia;
 62;Veľká Ida – Letná;;;;;;3122;@3122;Letna, Velka Ida, Slovakia;
 63;Zvolen – J. Alexyho;;;;;;3118;@3118;J. Alexyho, Zvolen, Slovakia;
 64;Púchov – 1. mája;;;;;;13828;@13828;1. maja, Puchov, Slovakia;
 65;Trnava – Kollárova;;;;;;3138;@3138;Kollarova, Trnava, Slovakia;
 66;Krompachy – SNP;;;;;;3144;@3144;SNP, Krompachy, Slovakia;
-67;Žilina – Obezná;;;;;;3143;@3143;Obezna, Zilina, Slovakia;
+67;Žilina – Obežná;;;;;;3143;@3143;Obezna, Zilina, Slovakia;
 68;Martin – Jesenského;;;;;;3140;@3140;Jesenskeho, Martin, Slovakia;
 69;Jelšava – Jesenského;;;;;;3116;@3116;Jesenskeho, Jelsava, Slovakia;
 70;Hnúšťa – Hlavná;;;;;;3117;@3117;Hlavna, Hnusta, Slovakia;
@@ -73,4 +65,4 @@ id;query_name;location_id;location_name;location_from_coords;locality;sensor_ids
 72;Nitra – Štúrova;;;;;;3125;@3125;Sturova, Nitra, Slovakia;
 73;Bardejov – Pod Vinbargom;;;;;;13822;@13822;Pod Vinbargom, Bardejov, Slovakia;
 74;Trnovec nad Váhom;;;;;;-509929;A509929;Trnovec nad Váhom;
-75;Prečín - Pvažská Bystrica;;;;;;-478879;A478879;Precin-Povazska Bystrica
+75;Považská Bystrica - Prečín;;;;;;-478879;A478879;Precin-Povazska Bystrica

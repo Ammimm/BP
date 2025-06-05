@@ -8,10 +8,12 @@
   <link rel="stylesheet" href="/style/style.css">
   <link rel="icon" type="image/png" href="/images/favicon.ico">
 
-</head>
-<body>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
-  <!-- Navigácia -->
+
+</head>
+
+<body>
   <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
     <div class="container-fluid">
       <a class="navbar-brand" href="#">AIR CHECK</a>
@@ -21,19 +23,36 @@
 
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item"><a class="nav-link" href="/users/dashboard">Domov</a></li>
+          <li class="nav-item">
+            <a class="nav-link" href="/users/dashboard">Domov</a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link" href="/users/favorites">Obľúbené</a>
+          </li>
+
           <li class="nav-item dropdown">
-            <a class="nav-link dropdown-toggle" href="#" id="apiDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <a class="nav-link dropdown-toggle" href="#" id="apiDropdown" role="button" data-bs-toggle="dropdown"
+              aria-expanded="false">
               API
             </a>
-            <ul class="dropdown-menu dropdown-menu-dark" aria-labelledby="apiDropdown">
+            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end" aria-labelledby="apiDropdown">
               <li><a class="dropdown-item" href="/users/api-token">Môj API token</a></li>
               <li><a class="dropdown-item" href="/api-docs">API dokumentácia</a></li>
             </ul>
           </li>
-          <li class="nav-item"><a class="nav-link" href="/users/favorites">Obľúbené lokality</a></li>
-          <li class="nav-item"><a class="nav-link" href="/users/profile">Profil</a></li>
-          <li class="nav-item"><a class="nav-link" href="/users/logout">Odhlásiť</a></li>
+          
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="userDropdown" role="button"
+              data-bs-toggle="dropdown" aria-expanded="false">
+              <i class="bi bi-person-circle me-2"></i> <span></span>
+            </a>
+
+            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark" aria-labelledby="userDropdown">
+              <li><a class="dropdown-item" href="/users/profile">Profil</a></li>
+              <li><a class="dropdown-item" href="/users/logout">Odhlásiť</a></li>
+            </ul>
+          </li>
         </ul>
       </div>
     </div>
